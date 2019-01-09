@@ -1,0 +1,47 @@
+<h1>{{ title }}</h1>
+<table
+    style="border-spacing: 0; width: 100%; font-family: Helvetica,Arial,Lucida Grande,sans-serif; font-size: 12px"
+>
+    <thead>
+        <tr style="color: #9eaab9; background: #f2f4f6;">
+            <th
+                style="border: solid #bfc5d0; border-width: 1px 1px 4px; padding: 4px; text-align: left;"
+            >
+                Title
+            </th>
+            <th
+                style="border: solid #bfc5d0; border-width: 1px 1px 4px;padding: 4px; text-align: left;"
+            >
+                Tags
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for card in cards %}
+        <tr>
+            <td
+                style="padding: 4px; background-color: #fff; border: 1px solid #e8eaee; border-top: none;"
+            >
+                <a
+                    href="{{card.shortUrl}}"
+                    style="color: black; text-decoration: none;"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >{{card.name}}</a
+                >
+            </td>
+            <td
+                style="padding: 4px; background-color: #fff; border: 1px solid #e8eaee; border-top: none;"
+            >
+                {% for label in card.labels %}
+                <span
+                    style="color: #9eaab9; background: #f2f4f6; padding: 4px; font-size: 10px; border-radius: 2px;"
+                    >{{label.name}}</span
+                >
+                {% endfor %}
+            </td>
+        </tr>
+
+        {% endfor %}
+    </tbody>
+</table>

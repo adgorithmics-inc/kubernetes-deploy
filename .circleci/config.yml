@@ -1,0 +1,32 @@
+version: 2
+jobs:
+  publish-image:
+    machine: true
+    steps:
+      - checkout
+      - run: |
+          echo $JSON_KEYFILE | docker login -u _json_key --password-stdin https://gcr.io
+          ./build.sh
+  send_notification:
+    machine: true
+    steps:
+      - checkout
+      - run: |
+          CONTAINER_NAME=gcr.io/$GCLOUD_PROJECT/kubernetes-deploy:$(utils/get_build_tag.sh)
+          curl -X POST --data-urlencode \
+          "payload={\"channel\": \"#container-builds\", \"username\": \"Bob the Builder\", \"text\": \"Built and published kubernetes-deploy: $CONTAINER_NAME\", \"icon_emoji\": \":construction_worker:\"}" \
+          $SLACK_HOOK_URL;
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - publish-image:
+          context: org-global
+          filters:
+            branches:
+              only: master
+      - send_notification:
+          context: org-global
+          requires:
+            - publish-image
