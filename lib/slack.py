@@ -43,9 +43,19 @@ class SlackApi:
             'chat.postMessage',
             thread_ts=self.thread_ts,
             channel=SLACK_CHANNEL,
-            username=self.username,
+            username='Status Update',
             icon_emoji=self.icon,
             text=message
+        )
+        log.debug('Returned from Slack: {}'.format(returned))
+
+    def send_completion_reaction(self, success: bool):
+        log.debug('Sending to Slack #{}: {}'.format(SLACK_CHANNEL))
+        returned = self.slacker.api_call(
+            'reactions.add',
+            timestamp=self.thread_ts,
+            channel=SLACK_CHANNEL,
+            name="party_yeet" if success else ":ultra_fire:"
         )
         log.debug('Returned from Slack: {}'.format(returned))
 
