@@ -1,32 +1,78 @@
-import os
+import time
+import config
 import logging
 from slackclient import SlackClient
 
 log = logging.getLogger(__name__)
-slacker = SlackClient(token=os.getenv('SLACK_TOKEN'))
+
 SLACK_CHANNEL = 'adgo_deployments'
-PROD_RELEASE = os.getenv('GCLOUD_CLUSTER_NAME') == 'prod-cluster'
-ICON_EMOJI = ':release:' if PROD_RELEASE else ':canned_food:'
-USERNAME_PREFIX = 'Production' if PROD_RELEASE else 'Development'
+
+MIGRATION_LEVEL_MAP = [
+    {
+        'text': 'None',
+        'color': 'good'
+    },
+    {
+        'text': ':hotsprings: Hot',
+        'color': 'warning'
+    },
+    {
+        'text': ':snowflake: Cold',
+        'color': 'danger'
+    },
+]
 
 
-def send_message(message: str) -> None:
+class SlackApi:
     """
-    Sends a message to Slack
-    :param message:
-    :return:
+    Wrapper for slack to send deployment status updates
     """
 
-    try:
-        logging.debug('Sending to Slack #{}: {}'.format(SLACK_CHANNEL, message))
-        returned = slacker.api_call(
-            'chat.postMessage',
-            channel=SLACK_CHANNEL,
-            text=message,
-            username='{} Deployer'.format(USERNAME_PREFIX),
-            icon_emoji=ICON_EMOJI
-        )
-        logging.debug('Returned from Slack: {}'.format(returned))
+    def __init__(self):
+        is_production = config.CLUSTER_NAME == 'prod-cluster'
+        self.slacker = SlackClient(token=config.SLACK_TOKEN)
+        self.image = config.IMAGE
+        self.icon = ':release:' if is_production else ':canned_food:'
+        self.username = ('Production' if is_production else 'Development') + ' Deployer'
+        self.color = MIGRATION_LEVEL_MAP[config.MIGRATION_LEVEL]['color']
+        self.migration_text = MIGRATION_LEVEL_MAP[config.MIGRATION_LEVEL]['text']
 
-    except Exception as error:
-        logging.error(error)
+    def send_intial_thread_message(self) -> None:
+        """
+        Sends a message to Slack
+        :param message:
+        :return:
+        """
+        self.thread_ts = time.time()
+        initiation_message = 'Initiating {}'.format(self.username)
+        try:
+            log.debug('Sending to Slack #{}: {}'.format(SLACK_CHANNEL, initiation_message))
+            returned = self.slacker.api_call(
+                'chat.postMessage',
+                ts=self.thread_ts,
+                channel=SLACK_CHANNEL,
+                username=self.username,
+                icon_emoji=self.icon,
+                text=initiation_message,
+                attachments={
+                    'fallback': initiation_message,
+                    'color': self.color,
+                    'attachment_type': 'default',
+                    'fields': [
+                        {
+                            'title': 'Image',
+                            'value': self.image,
+                            'short': False
+                        },
+                        {
+                            'title': 'Migrations',
+                            'value': self.migration_text,
+                            'short': False
+                        }
+                    ]
+                }
+            )
+            log.debug('Returned from Slack: {}'.format(returned))
+
+        except Exception as error:
+            log.error(error)
