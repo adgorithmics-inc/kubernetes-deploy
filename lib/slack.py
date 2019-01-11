@@ -1,4 +1,3 @@
-import time
 import config
 import logging
 from slackclient import SlackClient
@@ -36,26 +35,34 @@ class SlackApi:
         self.username = ('Production' if is_production else 'Development') + ' Deployer'
         self.color = MIGRATION_LEVEL_MAP[config.MIGRATION_LEVEL]['color']
         self.migration_text = MIGRATION_LEVEL_MAP[config.MIGRATION_LEVEL]['text']
+        self.thread_ts = 0
+
+    def send_status_update(self, message: str):
+        log.debug('Sending to Slack #{}: {}'.format(SLACK_CHANNEL, message))
+        returned = self.slacker.api_call(
+            'chat.postMessage',
+            thread_ts=self.thread_ts,
+            channel=SLACK_CHANNEL,
+            username=self.username,
+            icon_emoji=self.icon,
+            text=message
+        )
+        log.debug('Returned from Slack: {}'.format(returned))
 
     def send_intial_thread_message(self) -> None:
         """
-        Sends a message to Slack
-        :param message:
+        Sends initial message to Slack
         :return:
         """
-        self.thread_ts = time.time()
-        initiation_message = 'Initiating {}'.format(self.username)
         try:
-            log.debug('Sending to Slack #{}: {}'.format(SLACK_CHANNEL, initiation_message))
+            log.debug('Sending to Slack #{}'.format(SLACK_CHANNEL))
             returned = self.slacker.api_call(
                 'chat.postMessage',
-                ts=self.thread_ts,
                 channel=SLACK_CHANNEL,
                 username=self.username,
                 icon_emoji=self.icon,
-                text=initiation_message,
-                attachments={
-                    'fallback': initiation_message,
+                attachments=[{
+                    'fallback': 'Image={} Migrations={}'.format(self.image, self.migration_text),
                     'color': self.color,
                     'attachment_type': 'default',
                     'fields': [
@@ -70,9 +77,9 @@ class SlackApi:
                             'short': False
                         }
                     ]
-                }
+                }]
             )
             log.debug('Returned from Slack: {}'.format(returned))
-
+            self.thread_ts = returned.get('ts')
         except Exception as error:
             log.error(error)
