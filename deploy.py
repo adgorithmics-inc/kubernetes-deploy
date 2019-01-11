@@ -20,9 +20,9 @@ class Deployorama:
         self.requires_migration = migration_level > 0
 
     def deploy(self):
-        success = True
+        error_message = None
         try:
-            self.slacker.send_intial_thread_message()
+            self.slacker.send_initial_message()
             if (self.requires_scale_down is True):
                 self.scale_down_deployments()
             if (self.requires_migration is True):
@@ -33,66 +33,57 @@ class Deployorama:
             if (self.requires_scale_down is True):
                 self.scale_up_deployments()
 
-            self.slacker.send_status_update(':shipit_parrot: Rollout Completed Successfully :cool_doge:')
-
         except Exception as e:
-            error_message = ':skull_and_crossbones: Deployer Dying :skull_and_crossbones:: Error={}'.format(e.message)
+            error_message = str(e)
             logging.error(error_message)
-            self.slacker.send_status_update('@here {}'.format(error_message))
-            success = False
 
-        self.slacker.send_completion_reaction(success=success)
+        self.slacker.send_completion_message(error_message=error_message)
 
     def scale_down_deployments(self):
         try:
-            self.slacker.send_status_update('scaling down')
+            self.slacker.send_thread_reply('scaling down')
             print('do stuff')
         except Exception as e:
-            error_message = 'Scale Down Failed: Error={}'.format(e.message)
+            error_message = 'Scale Down Failed: Error={}'.format(str(e))
             logging.error(error_message)
-            self.slacker.send_status_update('@here {}'.format(error_message))
             raise e
 
     def scale_up_deployments(self):
         try:
-            self.slacker.send_status_update('scaling up')
+            self.slacker.send_thread_reply('scaling up')
             print('do stuff')
         except Exception as e:
-            error_message = 'Scale Up Failed: Error={}'.format(e.message)
+            error_message = 'Scale Up Failed: Error={}'.format(str(e))
             logging.error(error_message)
-            self.slacker.send_status_update('@here {}'.format(error_message))
             raise e
 
     def backup_database(self):
         try:
-            self.slacker.send_status_update('backing up database')
+            self.slacker.send_thread_reply('backing up database')
             print('do stuff')
         except Exception as e:
-            error_message = 'Backup Creation Failed: Error={}'.format(e.message)
+            error_message = 'Backup Creation Failed: Error={}'.format(str(e))
             logging.error(error_message)
-            self.slacker.send_status_update('@here {}'.format(error_message))
             raise e
 
     def run_migration(self):
         self.backup_database()
 
         try:
-            self.slacker.send_status_update('migrating')
+            self.slacker.send_thread_reply('migrating')
             print('do stuff')
         except Exception as e:
-            error_message = 'Migration Failed: Error={}'.format(e.message)
+            error_message = 'Migration Failed: Error={}'.format(str(e))
             logging.error(error_message)
-            self.slacker.send_status_update('@here {}'.format(error_message))
             raise e
 
     def set_images(self):
         try:
-            self.slacker.send_status_update('set images')
+            self.slacker.send_thread_reply('set images')
             print('do stuff')
         except Exception as e:
-            error_message = 'Set Images Failed: Error={}'.format(e.message)
+            error_message = 'Set Images Failed: Error={}'.format(str(e))
             logging.error(error_message)
-            self.slacker.send_status_update('@here {}'.format(error_message))
             raise e
 
 
