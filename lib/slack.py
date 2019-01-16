@@ -30,9 +30,10 @@ class SlackApi:
     def __init__(self):
         is_production = config.CLUSTER_NAME == 'prod-cluster'
         self.slacker = SlackClient(token=config.SLACK_TOKEN)
+        self.cluster_text = 'Production' if is_production else 'Development'
         self.image = config.IMAGE
         self.icon = ':release:' if is_production else ':canned_food:'
-        self.username = ('Production' if is_production else 'Development') + ' Deployer'
+        self.username = '{} Deployer'.format(self.cluster_text)
         self.color = MIGRATION_LEVEL_MAP[config.MIGRATION_LEVEL]['color']
         self.migration_text = MIGRATION_LEVEL_MAP[config.MIGRATION_LEVEL]['text']
         self.thread_ts = 0
@@ -56,7 +57,7 @@ class SlackApi:
         Sends message to Slack
         :return:
         """
-        message = 'Deployment Processing'
+        message = '{} Deployment Processing'.format(self.cluster_text)
         attachments = [{
                     'fallback': 'Image={} Migrations={}'.format(self.image, self.migration_text),
                     'color': self.color,
@@ -102,20 +103,26 @@ class SlackApi:
 
         attachments = None
         if has_error:
-            message = '@here\n:ultra_fire: Deployment Failed :ultra_fire:\n{}'.format(error_handling_message)
+            message = '@here\n:ultra_fire: Deployment Failed :ultra_fire:'
 
             attachments = [{
-                        'fallback': 'Error={}'.format(error_message),
+                        'fallback': 'Deployment Error={}'.format(error_message),
                         'color': 'danger',
                         'attachment_type': 'default',
                         'fields': [
                             {
-                                'title': 'Error',
+                                'title': 'Deployment Error',
                                 'value': error_message,
+                                'short': False
+                            },
+                            {
+                                'title': 'Recovery Status',
+                                'value': error_handling_message,
                                 'short': False
                             }
                         ]
                     }]
+
             if (requires_rollback_deployments):
                 attachments[0]['fields'].append({
                     'title': 'Requires Deployment Rollback',
@@ -135,6 +142,6 @@ class SlackApi:
                     'short': False
                 })
         else:
-            message = '@here\n:party_yeet: Deployment Completed Successfully :party_yeet:'
+            message = '@here\n:party_yeet: {} Deployment Completed Successfully :party_yeet:'.format(self.cluster_text)
 
         self.send_thread_reply(message=message, attachments=attachments, reply_broadcast=True)

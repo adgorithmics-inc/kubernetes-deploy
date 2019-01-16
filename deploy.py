@@ -20,8 +20,11 @@ class Deployorama:
         self.requires_migration = migration_level > 0
         self.requires_scale_up = False
         self.requires_rollback_deployments = False
+        self.requires_rollback_migration = False
 
     def deploy(self):
+        error_message = None
+        error_handling_message = None
 
         try:
             self.slacker.send_initial_message()
@@ -38,7 +41,7 @@ class Deployorama:
         except Exception as e:
             error_message = str(e)
             logging.error(error_message)
-            error_handling_message = self.handle_failure()
+            error_handling_message = self.handle_deployment_error()
 
         self.slacker.send_completion_message(
             error_message=error_message,
@@ -48,8 +51,10 @@ class Deployorama:
             requires_rollback_migration=self.requires_rollback_migration
         )
 
-    def handle_failure(self):
-        error_handler_message = "Successfully Reverted Deployment Modifications"
+    def handle_deployment_error(self):
+        error_handler_message = "Successfully Rolled Back Deployment"
+        step = 'Recovering From Deployment Error'
+        self.slacker.send_thread_reply(step)
         try:
             if (self.requires_rollback_migration is True):
                 self.rollback_migration()
@@ -58,82 +63,83 @@ class Deployorama:
             if (self.requires_scale_up is True):
                 self.scale_up_deployments()
         except Exception as e:
-            error_handler_message = 'Error Handling Failed: Error={}'.format(str(e))
+            error_handler_message = str(e)
             logging.error(error_handler_message)
 
         return error_handler_message
 
+    def handle_step_error(self, error: Exception, step: str):
+        error_message = '{} Failed: Error={}'.format(step, str(error))
+        logging.error(error_message)
+        self.slacker.send_thread_reply(error_message)
+        raise Exception(error_message)
+
     def rollback_migration(self):
+        step = 'Rolling Back Migration'
         try:
-            self.slacker.send_thread_reply('Rolling Back Migration')
+            self.slacker.send_thread_reply(step)
             print('do stuff')
         except Exception as e:
-            error_message = 'Rolling Back Migration Failed: Error={}'.format(str(e))
-            logging.error(error_message)
-            raise e
+            self.handle_step_error(step=step, error=e)
 
         self.requires_rollback_migration = False
 
     def rollback_deployments(self):
+        step = 'Rolling Back Deployments'
         try:
-            self.slacker.send_thread_reply('Rolling Back Deployments')
+            self.slacker.send_thread_reply(step)
             print('do stuff')
         except Exception as e:
-            error_message = 'Rolling Back Deployments Failed: Error={}'.format(str(e))
-            logging.error(error_message)
-            raise e
+            self.handle_step_error(step=step, error=e)
 
         self.requires_rollback_deployments = False
 
     def scale_down_deployments(self):
+        step = 'Scaling Down Deployments'
         try:
-            self.slacker.send_thread_reply('scaling down')
+            self.slacker.send_thread_reply(step)
             print('do stuff')
         except Exception as e:
-            error_message = 'Scale Down Failed: Error={}'.format(str(e))
-            logging.error(error_message)
-            raise e
+            self.handle_step_error(step=step, error=e)
 
         self.requires_scale_up = True
 
     def scale_up_deployments(self):
+        step = 'Scaling Up Deployments'
         try:
-            self.slacker.send_thread_reply('scaling up')
+            self.slacker.send_thread_reply(step)
             print('do stuff')
         except Exception as e:
-            error_message = 'Scale Up Failed: Error={}'.format(str(e))
-            logging.error(error_message)
-            raise e
+            self.handle_step_error(step=step, error=e)
 
         self.requires_scale_up = False
 
     def backup_database(self):
+        step = 'Backing Up Database'
         try:
-            self.slacker.send_thread_reply('backing up database')
+            self.slacker.send_thread_reply(step)
             print('do stuff')
         except Exception as e:
-            error_message = 'Backup Creation Failed: Error={}'.format(str(e))
-            logging.error(error_message)
-            raise e
+            self.handle_step_error(step=step, error=e)
 
     def run_migration(self):
         self.backup_database()
-
+        step = 'Migrating Database'
         try:
-            self.slacker.send_thread_reply('migrating')
+            self.slacker.send_thread_reply(step)
             print('do stuff')
         except Exception as e:
-            error_message = 'Migration Failed: Error={}'.format(str(e))
-            logging.error(error_message)
-            raise e
+            self.handle_step_error(step=step, error=e)
 
         self.requires_rollback_migration = True
 
     def set_images(self):
+        step = 'Setting Deployment Images'
         try:
-            self.slacker.send_thread_reply('set images')
+            self.slacker.send_thread_reply(step)
             print('do stuff')
         except Exception as e:
+            self.handle_step_error(step=step, error=e)
             error_message = 'Set Images Failed: Error={}'.format(str(e))
             logging.error(error_message)
             raise e

@@ -9,3 +9,4 @@ LATEST_TAG=$BASE_IMAGE:latest
 docker build . --tag=$TAG --tag=$LATEST_TAG
 docker push $TAG
 docker push $LATEST_TAG
+echo "IMAGE PUSHED $TAG"
