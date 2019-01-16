@@ -107,7 +107,6 @@ class SlackApi:
     ):
         has_error = error_message is not None
 
-        attachments = []
         if has_error:
             message = '@here\n:ultra_fire: Deployment Failed :ultra_fire:'
 
@@ -149,8 +148,13 @@ class SlackApi:
                 })
         else:
             message = '@here\n:party_yeet: {} Deployment Completed Successfully :party_yeet:'.format(self.cluster_text)
+            attachments = [{
+                        'color': 'good',
+                        'attachment_type': 'default',
+                        'fields': []
+                    }]
 
-        attachments.append(
+        attachments[0]['fields'].append(
             {
                 'title': 'Logs',
                 'value': '{}{}'.format(BASE_LOG_URL, config.HOST_NAME),
