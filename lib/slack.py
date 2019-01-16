@@ -5,6 +5,7 @@ from slackclient import SlackClient
 log = logging.getLogger(__name__)
 
 SLACK_CHANNEL = 'adgo_deployments'
+BASE_LOG_URL = 'https://console.cloud.google.com/logs/viewer?project=sonic-wavelet-124006&filters=label:container.googleapis.com%2Fpod_name:'
 
 MIGRATION_LEVEL_MAP = [
     {
@@ -72,6 +73,11 @@ class SlackApi:
                             'title': 'Migrations',
                             'value': self.migration_text,
                             'short': False
+                        },
+                        {
+                            'title': 'Logs',
+                            'value': 'kubectl logs -f {}'.format(config.HOST_NAME),
+                            'short': False
                         }
                     ]
                 }]
@@ -101,7 +107,7 @@ class SlackApi:
     ):
         has_error = error_message is not None
 
-        attachments = None
+        attachments = []
         if has_error:
             message = '@here\n:ultra_fire: Deployment Failed :ultra_fire:'
 
@@ -144,4 +150,11 @@ class SlackApi:
         else:
             message = '@here\n:party_yeet: {} Deployment Completed Successfully :party_yeet:'.format(self.cluster_text)
 
+        attachments.append(
+            {
+                'title': 'Logs',
+                'value': '{}{}'.format(BASE_LOG_URL, config.HOST_NAME),
+                'short': False
+            }
+        )
         self.send_thread_reply(message=message, attachments=attachments, reply_broadcast=True)
