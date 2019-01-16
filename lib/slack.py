@@ -90,12 +90,20 @@ class SlackApi:
         except Exception as error:
             log.error(error)
 
-    def send_completion_message(self, error_message: str = None):
+    def send_completion_message(
+        self,
+        error_message: str = None,
+        error_handling_message: str = None,
+        requires_scale_up: bool = False,
+        requires_rollback_deployments: bool = False,
+        requires_rollback_migration: bool = False
+    ):
         has_error = error_message is not None
 
         attachments = None
         if has_error:
-            message = ':ultra_fire: Deployment Failed :ultra_fire:\n@here'
+            message = '@here\n:ultra_fire: Deployment Failed :ultra_fire:\n{}'.format(error_handling_message)
+
             attachments = [{
                         'fallback': 'Error={}'.format(error_message),
                         'color': 'danger',
@@ -108,7 +116,25 @@ class SlackApi:
                             }
                         ]
                     }]
+            if (requires_rollback_deployments):
+                attachments[0]['fields'].append({
+                    'title': 'Requires Deployment Rollback',
+                    'value': '',
+                    'short': False
+                })
+            if (requires_rollback_migration):
+                attachments[0]['fields'].append({
+                    'title': 'Requires Migration Rollback',
+                    'value': '',
+                    'short': False
+                })
+            if (requires_scale_up):
+                attachments[0]['fields'].append({
+                    'title': 'Requires Deployment Scale Up',
+                    'value': '',
+                    'short': False
+                })
         else:
-            message = ':party_yeet: Deployment Completed Successfully :party_yeet:\n@here'
+            message = '@here\n:party_yeet: Deployment Completed Successfully :party_yeet:'
 
         self.send_thread_reply(message=message, attachments=attachments, reply_broadcast=True)
