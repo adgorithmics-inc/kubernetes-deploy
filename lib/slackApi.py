@@ -56,7 +56,6 @@ class SlackApi:
     def send_initial_message(self):
         """
         Sends message to Slack
-        :return:
         """
         message = '{} Deployment Processing'.format(self.cluster_text)
         attachments = [{
@@ -101,17 +100,18 @@ class SlackApi:
         self,
         error_message: str = None,
         error_handling_message: str = None,
-        requires_scale_up: bool = False,
-        requires_rollback_deployments: bool = False,
+        requires_scale_up_frontend: bool = False,
+        requires_scale_up_backend: bool = False,
+        requires_rollback_images: bool = False,
         requires_rollback_migration: bool = False
     ):
         has_error = error_message is not None
 
         if has_error:
-            message = '@here\n:ultra_fire: Deployment Failed :ultra_fire:'
+            message = '@here\n:ultra_fire: {} Deployment Failed :ultra_fire:'.format(self.cluster_text)
 
             attachments = [{
-                        'fallback': 'Deployment Error={}'.format(error_message),
+                        'fallback': '{} Deployment Error={}'.format(self.cluster_text, error_message),
                         'color': 'danger',
                         'attachment_type': 'default',
                         'fields': [
@@ -128,9 +128,9 @@ class SlackApi:
                         ]
                     }]
 
-            if (requires_rollback_deployments):
+            if (requires_rollback_images):
                 attachments[0]['fields'].append({
-                    'title': 'Requires Deployment Rollback',
+                    'title': 'Requires Image Rollback',
                     'value': '',
                     'short': False
                 })
@@ -140,15 +140,22 @@ class SlackApi:
                     'value': '',
                     'short': False
                 })
-            if (requires_scale_up):
+            if (requires_scale_up_frontend):
                 attachments[0]['fields'].append({
-                    'title': 'Requires Deployment Scale Up',
+                    'title': 'Requires Frontend Scale Up',
+                    'value': '',
+                    'short': False
+                })
+            if (requires_scale_up_backend):
+                attachments[0]['fields'].append({
+                    'title': 'Requires Backend Scale Up',
                     'value': '',
                     'short': False
                 })
         else:
             message = '@here\n:party_yeet: {} Deployment Completed Successfully :party_yeet:'.format(self.cluster_text)
             attachments = [{
+                        'fallback': '{} Deployment Success'.format(self.cluster_text),
                         'color': 'good',
                         'attachment_type': 'default',
                         'fields': []
