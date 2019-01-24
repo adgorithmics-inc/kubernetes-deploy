@@ -3,9 +3,9 @@ A script to deploy monolith to kubernetes. Designed to run as a kubernetes job.
 
 ## Required Environment Variables
 * $GOOGLE_APPLICATION_CREDENTIALS - Path to gcloud authentication json key file
-* $GCLOUD_PROJECT - Project name
-* $GCLOUD_ZONE - timezone of cluster (i.e. asia-northeast1-b)
-* $GCLOUD_CLUSTER_NAME - The production or development cluster name
+* $SLACK_TOKEN - For slack notifications
+* $GCLOUD_CLUSTER_NAME - The production or development cluster name (prod-cluster, dev-cluster)
+* $HOSTNAME - Host running this process (provided by Kubernetes)
 
 ## Required Arguments
 * -i, --image - The new monolith image to roll out

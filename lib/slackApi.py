@@ -5,22 +5,9 @@ from slackclient import SlackClient
 log = logging.getLogger(__name__)
 
 SLACK_CHANNEL = 'adgo_deployments'
-BASE_LOG_URL = 'https://console.cloud.google.com/logs/viewer?project=sonic-wavelet-124006&filters=label:container.googleapis.com%2Fpod_name:'
+BASE_LOG_URL = 'https://console.cloud.google.com/logs/viewer?project=sonic-wavelet-124006&resource=container&filters=label:container.googleapis.com%2Fpod_name:'
 
-MIGRATION_LEVEL_MAP = [
-    {
-        'text': 'None',
-        'color': 'good'
-    },
-    {
-        'text': ':hotsprings: Hot',
-        'color': 'warning'
-    },
-    {
-        'text': ':snowflake: Cold',
-        'color': 'danger'
-    },
-]
+MIGRATION_TEXT_MAP = ['None', ':hotsprings: Hot', ':snowflake: Cold']
 
 
 class SlackApi:
@@ -35,8 +22,7 @@ class SlackApi:
         self.image = config.IMAGE
         self.icon = ':release:' if is_production else ':canned_food:'
         self.username = '{} Deployer'.format(self.cluster_text)
-        self.color = MIGRATION_LEVEL_MAP[config.MIGRATION_LEVEL]['color']
-        self.migration_text = MIGRATION_LEVEL_MAP[config.MIGRATION_LEVEL]['text']
+        self.migration_text = MIGRATION_TEXT_MAP[config.MIGRATION_LEVEL]
         self.thread_ts = 0
 
     def send_thread_reply(self, message: str, attachments: dict = {}, reply_broadcast: bool = False):
@@ -60,7 +46,7 @@ class SlackApi:
         message = '{} Deployment Processing'.format(self.cluster_text)
         attachments = [{
                     'fallback': 'Image={} Migrations={}'.format(self.image, self.migration_text),
-                    'color': self.color,
+                    'color': 'good',
                     'attachment_type': 'default',
                     'fields': [
                         {
@@ -100,10 +86,8 @@ class SlackApi:
         self,
         error_message: str = None,
         error_handling_message: str = None,
-        requires_scale_up_frontend: bool = False,
-        requires_scale_up_backend: bool = False,
-        requires_rollback_images: bool = False,
-        requires_rollback_migration: bool = False
+        deployments: list = [],
+        requires_migration_rollback: bool = False
     ):
         has_error = error_message is not None
 
@@ -128,30 +112,40 @@ class SlackApi:
                         ]
                     }]
 
-            if (requires_rollback_images):
+            if (requires_migration_rollback):
                 attachments[0]['fields'].append({
-                    'title': 'Requires Image Rollback',
+                    'title': 'RESOLVE ISSUES OR ROLLBACK MIGRATION',
                     'value': '',
                     'short': False
                 })
-            if (requires_rollback_migration):
-                attachments[0]['fields'].append({
-                    'title': 'Requires Migration Rollback',
-                    'value': '',
-                    'short': False
-                })
-            if (requires_scale_up_frontend):
-                attachments[0]['fields'].append({
-                    'title': 'Requires Frontend Scale Up',
-                    'value': '',
-                    'short': False
-                })
-            if (requires_scale_up_backend):
-                attachments[0]['fields'].append({
-                    'title': 'Requires Backend Scale Up',
-                    'value': '',
-                    'short': False
-                })
+
+            for deployment in deployments:
+                scaled_down = deployment.get('scaled_down', False)
+                updated_image = deployment.get('updated_image', False)
+                if (scaled_down or updated_image):
+                    attachments.append({
+                        'fallback': '{} Error'.format(deployment['name']),
+                        'color': 'danger',
+                        'attachment_type': 'default',
+                        'text': '*{}*'.format(deployment['name']),
+                        'fields': []
+                    })
+                    if (scaled_down):
+                        attachments[-1]['fields'].append(
+                            {
+                                'title': 'Requires Scale Up',
+                                'value': 'Desired Replicas: {}'.format(deployment['replicas']),
+                                'short': False
+                            },
+                        )
+                    if (updated_image):
+                        attachments[-1]['fields'].append(
+                            {
+                                'title': 'Requires Image Rollback',
+                                'value': 'Desired Image: {}'.format(deployment['image']),
+                                'short': False
+                            },
+                        )
         else:
             message = '@here\n:party_yeet: {} Deployment Completed Successfully :party_yeet:'.format(self.cluster_text)
             attachments = [{
@@ -161,11 +155,12 @@ class SlackApi:
                         'fields': []
                     }]
 
-        attachments[0]['fields'].append(
-            {
-                'title': 'Logs',
-                'value': '{}{}'.format(BASE_LOG_URL, config.HOST_NAME),
-                'short': False
-            }
-        )
+        attachments[0]['actions'] = [{
+                "type": "button",
+                "name": "logs",
+                "text": "View GCP Logs",
+                "url": '{}{}'.format(BASE_LOG_URL, config.HOST_NAME),
+                "style": "primary",
+        }]
+
         self.send_thread_reply(message=message, attachments=attachments, reply_broadcast=True)
