@@ -92,7 +92,7 @@ class SlackApi:
         has_error = error_message is not None
 
         if has_error:
-            message = '@here\n:ultra_fire: {} Deployment Failed :ultra_fire:'.format(self.cluster_text)
+            message = '<@here>\n:ultra_fire: {} Deployment Failed :ultra_fire:'.format(self.cluster_text)
 
             attachments = [{
                         'fallback': '{} Deployment Error={}'.format(self.cluster_text, error_message),
@@ -147,7 +147,7 @@ class SlackApi:
                             },
                         )
         else:
-            message = '@here\n:party_yeet: {} Deployment Completed Successfully :party_yeet:'.format(self.cluster_text)
+            message = '<@here>\n:party_yeet: {} Deployment Completed Successfully :party_yeet:'.format(self.cluster_text)
             attachments = [{
                         'fallback': '{} Deployment Success'.format(self.cluster_text),
                         'color': 'good',
