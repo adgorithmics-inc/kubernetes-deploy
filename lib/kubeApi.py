@@ -24,7 +24,7 @@ class KubeApi:
         self.namespace = namespace
 
     def get_deployments(self, label_selector: str) -> List[dict]:
-        log.debug(f"Getting deployments: label_selector={label_selector}")
+        log.debug("Getting deployments: label_selector={}".format(label_selector))
         deployments = []
         response = self.appsV1Api.list_namespaced_deployment(
             self.namespace, label_selector=label_selector
@@ -39,21 +39,27 @@ class KubeApi:
                 }
             )
         log.debug(
-            f"Finished getting deployments: label_selector={label_selector} deployments={deployments}"
+            "Finished getting deployments: label_selector={} deployments={}".format(
+                label_selector, deployments
+            )
         )
         return deployments
 
     def update_deployment(
         self, deployment: str, update: dict, verify_update: bool = True
     ):
-        log.debug(f"Updating deployment: deployment={deployment} update={update}")
+        log.debug(
+            "Updating deployment: deployment={} update={}".format(deployment, update)
+        )
         self.appsV1Api.patch_namespaced_deployment_scale(
             deployment, self.namespace, update
         )
         if verify_update:
             self.verify_deployment_update(deployment)
         log.debug(
-            f"Finished updating deployment: deployment={deployment} update={update}"
+            "Finished updating deployment: deployment={} update={}".format(
+                deployment.update
+            )
         )
 
     def set_deployment_replicas(self, deployment: str, replicas: int):
@@ -71,11 +77,13 @@ class KubeApi:
         self.verify_pod_terminations_complete(deployment)
 
     def verify_pod_updates_complete(self, deployment: str):
-        log.debug(f"Verifying pod updates complete: deployment={deployment}")
+        log.debug("Verifying pod updates complete: deployment={}".format(deployment))
         timeout_time = time.time() + TIMEOUT_SECONDS
         still_updating = True
         while time.time() < timeout_time and still_updating:
-            log.debug(f"Checking deployment replica status: deployment={deployment}")
+            log.debug(
+                "Checking deployment replica status: deployment={}".format(deployment)
+            )
             result = self.appsV1Api.read_namespaced_deployment(
                 deployment, self.namespace
             )
@@ -92,18 +100,22 @@ class KubeApi:
 
         if still_updating:
             raise Exception(
-                f"Deployment Update Timeout Exceeded: deployment={deployment}"
+                "Deployment Update Timeout Exceeded: deployment={}".format(deployment)
             )
-        log.debug(f"Pod updates completed: deployment={deployment}")
+        log.debug("Pod updates completed: deployment={}".format(deployment))
 
     def verify_pod_terminations_complete(self, deployment: str):
-        log.debug(f"Verifying pod terminations complete: deployment={deployment}")
+        log.debug(
+            "Verifying pod terminations complete: deployment={}".format(deployment)
+        )
         timeout_time = time.time() + TIMEOUT_SECONDS
         still_updating = True
         while time.time() < timeout_time and still_updating:
-            log.debug(f"Checking deployment pod status: deployment={deployment}")
+            log.debug(
+                "Checking deployment pod status: deployment={}".format(deployment)
+            )
             result = self.coreV1Api.list_namespaced_pod(
-                self.namespace, label_selector=f"app={deployment}"
+                self.namespace, label_selector="app={}".format(deployment)
             )
             still_updating = not all(
                 pod.metadata.deletion_timestamp is None for pod in result.items
@@ -113,37 +125,39 @@ class KubeApi:
 
         if still_updating:
             raise Exception(
-                f"Pod Termination Timeout Exceeded: deployment={deployment}"
+                "Pod Termination Timeout Exceeded: deployment={}".format(deployment)
             )
-        log.debug(f"Pod terminations complete: deployment={deployment}")
+        log.debug("Pod terminations complete: deployment={}".format(deployment))
 
     def verify_job_not_in_progress(self, job: str):
-        log.debug(f"Verifying jobs not in progress: job={job}")
+        log.debug("Verifying jobs not in progress: job={}".format(job))
         result = self.coreV1Api.list_namespaced_pod(
             self.namepsace,
-            label_selector=f"app={job}",
+            label_selector="app={}".format(job),
             field_selector="status.phase!=Succeeded,status.phase!=Failed",
         )
         if len(result.items) > 0:
             raise Exception(
-                f"Unable to perform migration. {job} job already in progress"
+                "Unable to perform migration. {} job already in progress".format(job)
             )
-        log.debug(f"Verified job not in progress: job={job}")
+        log.debug("Verified job not in progress: job={}".format(job))
 
     def delete_job(self, job: str):
-        log.debug(f"Deleting job: job={job}")
+        log.debug("Deleting job: job={}".format(job))
         try:
             self.batchV1Api.delete_namespaced_job(
                 job, self.namespace, body=client.V1DeleteOptions()
             )
         except client.rest.ApiException as e:
             if e.code != NOT_FOUND:
-                raise Exception(f"Error deleting job: error={str(e)}")
-            log.debug(f"Unable to delete job that doesn't exist: job={job}")
-        log.debug(f"Job deleted successfully: job={job}")
+                raise Exception("Error deleting job: error={}".format(str(e)))
+            log.debug("Unable to delete job that doesn't exist: job={}".format(job))
+        log.debug("Job deleted successfully: job={}".format(job))
 
     def generate_app_migrator_job(self, image: str, source: str):
-        log.debug(f"Generating app-migrator job: image={image} source={source}")
+        log.debug(
+            "Generating app-migrator job: image={} source={}".format(image, source)
+        )
         deployment = self.appsV1Api.read_namespaced_deployment(source, self.namespace)
         metadata = client.V1ObjectMeta(
             labels={"app": APP_MIGRATOR}, name=APP_MIGRATOR, namespace=self.namespace
@@ -167,16 +181,18 @@ class KubeApi:
         ]
         self.batchV1Api.create_namespaced_job(self.namespace, job)
         log.debug(
-            f"Generation of app-migrator job complete: image={image} source={source}"
+            "Generation of app-migrator job complete: image={} source={}".format(
+                image, source
+            )
         )
 
     def verify_job_complete(self, job):
-        log.debug(f"Verifying job completion: job={job}")
+        log.debug("Verifying job completion: job={}".format(job))
         timeout_time = time.time() + TIMEOUT_SECONDS
         active = True
         succeeded = 0
         while time.time() < timeout_time and active:
-            log.debug(f"Checking job status: job={job}")
+            log.debug("Checking job status: job={}".format(job))
             result = self.batchV1Api.read_namespaced_job(job, self.namespace)
             active = result.status.active == 1
             succeeded = result.status.succeeded
@@ -184,15 +200,15 @@ class KubeApi:
                 time.sleep(POLL_WAIT)
 
         if active:
-            raise Exception(f"Job Termination Timeout Exceeded: job={job}")
+            raise Exception("Job Termination Timeout Exceeded: job={}".format(job))
         if succeeded == 0:
-            raise Exception(f"Job Failed: job={job}")
-        log.debug(f"Job completed successfully: job={job}")
+            raise Exception("Job Failed: job={}".format(job))
+        log.debug("Job completed successfully: job={}".format(job))
 
     def run_migration(self, image: str, source: str):
-        log.debug(f"Begin running migration: image={image} source={source}")
+        log.debug("Begin running migration: image={} source={}".format(image, source))
         self.verify_job_not_in_progress(APP_MIGRATOR)
         self.delete_job(APP_MIGRATOR)
         self.generate_app_migrator_job(image, source)
         self.verify_job_complete(APP_MIGRATOR)
-        log.debug(f"Completed migration: image={image} source={source}")
+        log.debug("Completed migration: image={} source={}".format(image, source))

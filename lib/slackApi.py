@@ -21,7 +21,7 @@ class SlackApi:
         self.cluster_text = "Production" if is_production else "Development"
         self.image = config.IMAGE
         self.icon = ":release:" if is_production else ":canned_food:"
-        self.username = f"{self.cluster_text} Deployer"
+        self.username = "{} Deployer".format(self.cluster_text)
         self.migration_text = MIGRATION_TEXT_MAP[config.MIGRATION_LEVEL]
         self.thread_ts = 0
 
@@ -30,7 +30,11 @@ class SlackApi:
         Sends message to Slack
         """
         try:
-            log.debug(f"Sending to Slack #{SLACK_CHANNEL}: text={kwargs.get('text')}")
+            log.debug(
+                "Sending to Slack #{}: text={}".format(
+                    SLACK_CHANNEL, kwargs.get("text")
+                )
+            )
             returned = self.slacker.api_call(
                 "chat.postMessage",
                 channel=SLACK_CHANNEL,
@@ -38,7 +42,7 @@ class SlackApi:
                 icon_emoji=self.icon,
                 **kwargs,
             )
-            log.debug(f"Returned from Slack: {returned}")
+            log.debug("Returned from Slack: {}".format(returned))
             self.thread_ts = returned.get("ts")
         except Exception as error:
             log.error(error)
@@ -50,10 +54,12 @@ class SlackApi:
         self.send_message(thread_ts=self.thread_ts, text=text, **kwargs)
 
     def send_initial_message(self):
-        text = f"{self.cluster_text} Deployment Processing"
+        text = "{} Deployment Processing".format(self.cluster_text)
         attachments = [
             {
-                "fallback": f"Image={self.image} Migrations={self.migration_text}",
+                "fallback": "Image={} Migrations={}".format(
+                    self.image, self.migration_text
+                ),
                 "color": "good",
                 "attachment_type": "default",
                 "fields": [
@@ -65,7 +71,7 @@ class SlackApi:
                     },
                     {
                         "title": "Logs",
-                        "value": f"kubectl logs -f {config.HOST_NAME}",
+                        "value": "kubectl logs -f {}".format(config.HOST_NAME),
                         "short": False,
                     },
                 ],
@@ -84,11 +90,15 @@ class SlackApi:
         has_error = error_message is not None
 
         if has_error:
-            text = f"<!here|here>\n:fire: {self.cluster_text} Deployment Failed :fire:"
+            text = "<!here|here>\n:fire: {} Deployment Failed :fire:".format(
+                self.cluster_text
+            )
 
             attachments = [
                 {
-                    "fallback": f"{self.cluster_text} Deployment Error={error_message}",
+                    "fallback": "{} Deployment Error={}".format(
+                        self.cluster_text, error_message
+                    ),
                     "color": "danger",
                     "attachment_type": "default",
                     "fields": [
@@ -121,10 +131,10 @@ class SlackApi:
                 if scaled_down or updated_image:
                     attachments.append(
                         {
-                            "fallback": f"{deployment['name']} Error",
+                            "fallback": "{} Error".format(deployment["name"]),
                             "color": "danger",
                             "attachment_type": "default",
-                            "text": f"*{deployment['name']}*",
+                            "text": "*{}*".format(deployment["name"]),
                             "fields": [],
                         }
                     )
@@ -132,7 +142,9 @@ class SlackApi:
                         attachments[-1]["fields"].append(
                             {
                                 "title": "Requires Scale Up",
-                                "value": f"Desired Replicas: {deployment['replicas']}",
+                                "value": "Desired Replicas: {}".format(
+                                    deployment["replicas"]
+                                ),
                                 "short": False,
                             }
                         )
@@ -140,15 +152,19 @@ class SlackApi:
                         attachments[-1]["fields"].append(
                             {
                                 "title": "Requires Image Rollback",
-                                "value": f"Desired Image: {deployment['image']}",
+                                "value": "Desired Image: {}".format(
+                                    deployment["image"]
+                                ),
                                 "short": False,
                             }
                         )
         else:
-            text = f"<!here|here>\n:yeet: {self.cluster_text} Deployment Completed Successfully :yeet:"
+            text = "<!here|here>\n:yeet: {} Deployment Completed Successfully :yeet:".format(
+                self.cluster_text
+            )
             attachments = [
                 {
-                    "fallback": f"{self.cluster_text} Deployment Success",
+                    "fallback": "{} Deployment Success".format(self.cluster_text),
                     "color": "good",
                     "attachment_type": "default",
                     "fields": [],
@@ -160,7 +176,7 @@ class SlackApi:
                 "type": "button",
                 "name": "logs",
                 "text": "View GCP Logs",
-                "url": f"{BASE_LOG_URL}{config.HOST_NAME}",
+                "url": "{}{}".format(BASE_LOG_URL, config.HOST_NAME),
                 "style": "primary",
             }
         ]

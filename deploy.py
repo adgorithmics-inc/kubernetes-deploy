@@ -28,7 +28,9 @@ class Deployorama:
         self.kuber = KubeApi(namespace=config.NAMESPACE)
         self.deployments = {
             tier: self.kuber.get_deployments(
-                label_selector=f"deploymentGroup={config.DEPLOYMENT_GROUP}, tier={tier}"
+                label_selector="deploymentGroup={}, tier={}".format(
+                    config.DEPLOYMENT_GROUP, tier
+                )
             )
             for tier in SCALABLE_TIERS + NON_SCALABLE_TIERS
         }
@@ -83,7 +85,7 @@ class Deployorama:
         self.slacker.send_thread_reply(step)
 
         if self.has_down_time is True and self.migration_completed:
-            return "Skipped Automated Recover: Requires Manual Intervention"
+            return "Skipped Automated Recovery: Requires Manual Intervention"
 
         try:
             self.rollback_images()
@@ -100,7 +102,7 @@ class Deployorama:
         """
         Handle notification for deployment step errors and raise exception with new message.
         """
-        error_message = f"{step} Failed: Error={str(error)}"
+        error_message = "{} Failed: Error={}".format(step, str(error))
         logging.error(error_message)
         self.slacker.send_thread_reply(error_message)
         raise Exception(error_message)
@@ -110,8 +112,8 @@ class Deployorama:
         Scale down deployments.
         """
         for tier in SCALABLE_TIERS:
-            step = (
-                f"Scaling Down Deployment:\ndeployment={self.deployments[tier]['name']}"
+            step = "Scaling Down Deployment:\ndeployment={}".format(
+                self.deployments[tier]["name"]
             )
             try:
                 self.slacker.send_thread_reply(step)
@@ -126,7 +128,9 @@ class Deployorama:
         """
         for tier in SCALABLE_TIERS[::-1]:
             if self.deployments[tier].get("scaled_down", False) is True:
-                step = f"Scaling Up Deployment:\ndeployment={self.deployments[tier]['name']}\nreplicas={self.deployments[tier]['replicas']}"
+                step = "Scaling Up Deployment:\ndeployment={}\nreplicas={}".format(
+                    self.deployments[tier]["name"], self.deployments[tier]["replicas"]
+                )
                 try:
                     self.slacker.send_thread_reply(step)
                     self.kuber.set_deployment_replicas(
@@ -141,11 +145,11 @@ class Deployorama:
         """
         Store a cloud sql backup on google storage
         """
-        backup_file = (
-            f"{config.DATABASE_NAME}-{datetime.today().strftime('%Y-%m-%d--%H%M')}.sql"
+        backup_file = "{}-{}.sql".format(
+            config.DATABASE_NAME, datetime.today().strftime("%Y-%m-%d--%H%M")
         )
-        backup_uri = f"{config.DATABASE_BACKUP_BUCKET}/{backup_file}"
-        step = f"Backing Up Database:\nbackup={backup_uri}"
+        backup_uri = "{}/{}".format(config.DATABASE_BACKUP_BUCKET, backup_file)
+        step = "Backing Up Database:\nbackup={}".format(backup_uri)
         try:
             self.slacker.send_thread_reply(step)
             backup_command = [
@@ -155,7 +159,7 @@ class Deployorama:
                 "sql",
                 config.DATABASE_INSTANCE_NAME,
                 backup_uri,
-                f"--database={config.DATABASE_NAME}",
+                "--database={}".format(config.DATABASE_NAME),
                 "--verbosity=debug",
             ]
             subprocess.run(backup_command, check=True)
@@ -182,10 +186,14 @@ class Deployorama:
             for deployment in [
                 deploy for sublist in self.deployments.values() for deploy in sublist
             ]:
-                step = f"Setting Deployment Image:\ndeployment={deployment['name']}\nold_image={deployment['image']}\nnew_image={self.image}"
+                step = "Setting Deployment Image:\ndeployment={}\nold_image={}\nnew_image={}".format(
+                    deployment["name"], deployment["image"], self.image
+                )
                 if deployment["image"] == self.image:
                     self.slacker.send_thread_reply(
-                        f"Deployment Doesn't Require Image Update: deployment={deployment['name']} image={self.image}"
+                        "Deployment Doesn't Require Image Update: deployment={} image={}".format(
+                            deployment["name"], self.image
+                        )
                     )
                     continue
                 self.slacker.send_thread_reply(step)
@@ -205,7 +213,9 @@ class Deployorama:
         ]:
             if deployment.get("updated_image", False) is False:
                 continue
-            step = f"Rolling Back Deployment Image:\ndeployment={deployment['name']}\nattempted_image={self.image}\nrollback_image={deployment['image']}"
+            step = "Rolling Back Deployment Image:\ndeployment={}\nattempted_image={}\nrollback_image={}".format(
+                deployment["name"], self.image, deployment["image"]
+            )
             try:
                 self.slacker.send_thread_reply(step)
                 self.kuber.set_deployment_image(
