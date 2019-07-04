@@ -38,6 +38,9 @@ class Deployorama:
         self.has_migration = migration_level > 0
         self.migration_completed = False
 
+    def all_deployments(self):
+        return [deploy for sublist in self.deployments.values() for deploy in sublist]
+
     def deploy(self):
         """
         The master deployment method to process deployment from start to finish.
@@ -73,7 +76,7 @@ class Deployorama:
         self.slacker.send_completion_message(
             error_message=error_message,
             error_handling_message=error_handling_message,
-            deployments=self.deployments.values(),
+            deployments=self.all_deployments(),
             requires_migration_rollback=self.has_down_time and self.migration_completed,
         )
 
@@ -102,7 +105,7 @@ class Deployorama:
         """
         Handle notification for deployment step errors and raise exception with new message.
         """
-        error_message = "{} Failed: Error={}".format(step, str(error))
+        error_message = "{}\nFailed: Error={}".format(step, str(error))
         logging.error(error_message)
         self.slacker.send_thread_reply(error_message)
         raise Exception(error_message)
@@ -112,34 +115,35 @@ class Deployorama:
         Scale down deployments.
         """
         for tier in SCALABLE_TIERS:
-            step = "Scaling Down Deployment:\ndeployment={}".format(
-                self.deployments[tier]["name"]
-            )
-            try:
-                self.slacker.send_thread_reply(step)
-                self.deployments[tier]["scaled_down"] = True
-                self.kuber.set_deployment_replicas(self.deployments[tier]["name"], 0)
-            except Exception as e:
-                self.raise_step_error(step=step, error=e)
+            for deployment in self.deployments[tier]:
+                step = "Scaling Down Deployment:\ndeployment={}".format(
+                    deployment["name"]
+                )
+                try:
+                    self.slacker.send_thread_reply(step)
+                    deployment["scaled_down"] = True
+                    self.kuber.set_deployment_replicas(deployment["name"], 0)
+                except Exception as e:
+                    self.raise_step_error(step=step, error=e)
 
     def scale_up_deployments(self):
         """
         Scale up all deployments (in reverse order) to original replica counts.
         """
         for tier in SCALABLE_TIERS[::-1]:
-            if self.deployments[tier].get("scaled_down", False) is True:
-                step = "Scaling Up Deployment:\ndeployment={}\nreplicas={}".format(
-                    self.deployments[tier]["name"], self.deployments[tier]["replicas"]
-                )
-                try:
-                    self.slacker.send_thread_reply(step)
-                    self.kuber.set_deployment_replicas(
-                        self.deployments[tier]["name"],
-                        self.deployments[tier]["replicas"],
+            for deployment in self.deployments[tier]:
+                if deployment.get("scaled_down", False) is True:
+                    step = "Scaling Up Deployment:\ndeployment={}\nreplicas={}".format(
+                        deployment["name"], deployment["replicas"]
                     )
-                    self.deployments[tier]["scaled_down"] = False
-                except Exception as e:
-                    self.raise_step_error(step=step, error=e)
+                    try:
+                        self.slacker.send_thread_reply(step)
+                        self.kuber.set_deployment_replicas(
+                            deployment["name"], deployment["replicas"]
+                        )
+                        deployment["scaled_down"] = False
+                    except Exception as e:
+                        self.raise_step_error(step=step, error=e)
 
     def backup_database(self):
         """
@@ -183,9 +187,7 @@ class Deployorama:
         Update images for all deployments.
         """
         try:
-            for deployment in [
-                deploy for sublist in self.deployments.values() for deploy in sublist
-            ]:
+            for deployment in self.all_deployments():
                 step = "Setting Deployment Image:\ndeployment={}\nold_image={}\nnew_image={}".format(
                     deployment["name"], deployment["image"], self.image
                 )
@@ -197,8 +199,8 @@ class Deployorama:
                     )
                     continue
                 self.slacker.send_thread_reply(step)
-                deployment["updated_image"] = True
                 self.kuber.set_deployment_image(deployment["name"], self.image)
+                deployment["updated_image"] = True
             for deployment in self.deployments:
                 self.kuber.verify_deployment_update(deployment)
         except Exception as e:
@@ -208,9 +210,7 @@ class Deployorama:
         """
         Rollback all deployment images to their original state prior to deployment.
         """
-        for deployment in [
-            deploy for sublist in self.deployments.values() for deploy in sublist
-        ]:
+        for deployment in self.all_deployments():
             if deployment.get("updated_image", False) is False:
                 continue
             step = "Rolling Back Deployment Image:\ndeployment={}\nattempted_image={}\nrollback_image={}".format(
