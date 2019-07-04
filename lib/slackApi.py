@@ -66,7 +66,7 @@ class SlackApi:
                     {"title": "Image", "value": self.image, "short": False},
                     {
                         "title": "Migrations",
-                        "value": f"{self.migration_text} level={config.MIGRATION_LEVEL == 0}",
+                        "value": f"{self.migration_text}",
                         "short": False,
                     },
                     {

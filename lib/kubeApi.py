@@ -36,6 +36,7 @@ class KubeApi:
                     "name": deployment.metadata.name,
                     "image": deployment.spec.template.spec.containers[0].image,
                     "replicas": deployment.status.replicas,
+                    "instance": deployment,
                 }
             )
         log.debug(
@@ -46,35 +47,32 @@ class KubeApi:
         return deployments
 
     def update_deployment(
-        self, deployment: str, update: client.V1Deployment, verify_update: bool = True
+        self, deployment: client.V1Deployment, verify_update: bool = True
     ):
+        name = deployment.metadata.name
         log.debug(
-            "Updating deployment: deployment={} update={}".format(deployment, update)
+            "Updating deployment: deployment={} update={}".format(name, deployment)
         )
-        self.appsV1Api.patch_namespaced_deployment(deployment, self.namespace, update)
+        deployment = self.appsV1Api.patch_namespaced_deployment(
+            name, self.namespace, deployment
+        )
         if verify_update:
             self.verify_deployment_update(deployment)
         log.debug(
             "Finished updating deployment: deployment={} update={}".format(
-                deployment, update
+                name, deployment
             )
         )
 
-    def set_deployment_replicas(self, deployment: str, replicas: int):
-        update = client.V1Deployment(spec=client.V1DeploymentSpec(replicas=replicas))
-        self.update_deployment(deployment, update)
+    def set_deployment_replicas(self, deployment: client.V1Deployment, replicas: int):
+        deployment.spec.replicas = replicas
+        self.update_deployment(deployment)
 
     def set_deployment_image(
-        self, deployment: str, image: int, verify_update: bool = False
+        self, deployment: client.V1Deployment, image: int, verify_update: bool = False
     ):
-        update = client.V1Deployment(
-            spec=client.V1DeploymentSpec(
-                template=client.V1PodTemplateSpec(
-                    spec=V1PodSpec(containers=[client.V1Container(image=image)])
-                )
-            )
-        )
-        self.update_deployment(deployment, update, verify_update)
+        deployment.spec.template.spec.containers[0].image = image
+        self.update_deployment(deployment, verify_update)
 
     def verify_deployment_update(self, deployment: str):
         self.verify_pod_updates_complete(deployment)

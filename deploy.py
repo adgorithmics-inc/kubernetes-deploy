@@ -21,9 +21,9 @@ class Deployorama:
     Perform kubernetes deployment and all that jazz.
     """
 
-    def __init__(self, image: str, migration_level: int):
-        self.image = image
-        self.migration = migration_level
+    def __init__(self):
+        self.image = config.IMAGE
+        self.migration = config.MIGRATION_LEVEL
         self.slacker = SlackApi()
         self.kuber = KubeApi(namespace=config.NAMESPACE)
         self.deployments = {
@@ -34,8 +34,8 @@ class Deployorama:
             )
             for tier in SCALABLE_TIERS + NON_SCALABLE_TIERS
         }
-        self.has_down_time = migration_level == 2
-        self.has_migration = migration_level > 0
+        self.has_down_time = self.migration == 2
+        self.has_migration = self.migration > 0
         self.migration_completed = False
 
     def all_deployments(self):
@@ -122,7 +122,7 @@ class Deployorama:
                 try:
                     self.slacker.send_thread_reply(step)
                     deployment["scaled_down"] = True
-                    self.kuber.set_deployment_replicas(deployment["name"], 0)
+                    self.kuber.set_deployment_replicas(deployment["instance"], 0)
                 except Exception as e:
                     self.raise_step_error(step=step, error=e)
 
@@ -139,7 +139,7 @@ class Deployorama:
                     try:
                         self.slacker.send_thread_reply(step)
                         self.kuber.set_deployment_replicas(
-                            deployment["name"], deployment["replicas"]
+                            deployment["instance"], deployment["replicas"]
                         )
                         deployment["scaled_down"] = False
                     except Exception as e:
@@ -199,10 +199,12 @@ class Deployorama:
                     )
                     continue
                 self.slacker.send_thread_reply(step)
-                self.kuber.set_deployment_image(deployment["name"], self.image)
+                self.kuber.set_deployment_image(deployment["instance"], self.image)
                 deployment["updated_image"] = True
-            for deployment in self.deployments:
-                self.kuber.verify_deployment_update(deployment)
+            step = "Verifying Deployment Updates Completed Successfully"
+            self.slacker.send_thread_reply(step)
+            for deployment in self.all_deployments():
+                self.kuber.verify_deployment_update(deployment["name"])
         except Exception as e:
             self.raise_step_error(step=step, error=e)
 
@@ -219,7 +221,7 @@ class Deployorama:
             try:
                 self.slacker.send_thread_reply(step)
                 self.kuber.set_deployment_image(
-                    deployment["name"], deployment["image"], verify_update=True
+                    deployment["instance"], deployment["image"], verify_update=True
                 )
                 deployment["updated_image"] = False
             except Exception as e:
@@ -245,5 +247,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config.IMAGE = args.image.strip()
     config.MIGRATION_LEVEL = args.migration
-    deployer = Deployorama(args.image, args.migration)
+    deployer = Deployorama()
     deployer.deploy()
