@@ -51,9 +51,7 @@ class KubeApi:
         log.debug(
             "Updating deployment: deployment={} update={}".format(deployment, update)
         )
-        self.appsV1Api.patch_namespaced_deployment_scale(
-            deployment, self.namespace, update
-        )
+        self.appsV1Api.patch_namespaced_deployment(deployment, self.namespace, update)
         if verify_update:
             self.verify_deployment_update(deployment)
         log.debug(
