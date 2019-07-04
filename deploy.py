@@ -243,7 +243,7 @@ if __name__ == "__main__":
         required=True,
     )
     args = parser.parse_args()
-    config.IMAGE = args.image
+    config.IMAGE = args.image.strip()
     config.MIGRATION_LEVEL = args.migration
     deployer = Deployorama(args.image, args.migration)
     deployer.deploy()

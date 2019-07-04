@@ -46,7 +46,7 @@ class KubeApi:
         return deployments
 
     def update_deployment(
-        self, deployment: str, update: dict, verify_update: bool = True
+        self, deployment: str, update: client.V1Deployment, verify_update: bool = True
     ):
         log.debug(
             "Updating deployment: deployment={} update={}".format(deployment, update)
@@ -61,13 +61,19 @@ class KubeApi:
         )
 
     def set_deployment_replicas(self, deployment: str, replicas: int):
-        update = {"spec": {"replicas": replicas}}
+        update = client.V1Deployment(spec=client.V1DeploymentSpec(replicas=replicas))
         self.update_deployment(deployment, update)
 
     def set_deployment_image(
         self, deployment: str, image: int, verify_update: bool = False
     ):
-        update = {"spec": {"template": {"spec": {"containers[0]": {"image": image}}}}}
+        update = client.V1Deployment(
+            spec=client.V1DeploymentSpec(
+                template=client.V1PodTemplateSpec(
+                    spec=V1PodSpec(containers=[client.V1Container(image=image)])
+                )
+            )
+        )
         self.update_deployment(deployment, update, verify_update)
 
     def verify_deployment_update(self, deployment: str):
