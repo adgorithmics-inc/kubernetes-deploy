@@ -1,16 +1,12 @@
-FROM google/cloud-sdk:latest
+FROM python:3.7-stretch
 
 WORKDIR /run/app
 
-RUN printf "deb http://archive.debian.org/debian/ jessie main\ndeb-src http://archive.debian.org/debian/ jessie main\ndeb http://security.debian.org jessie/updates main\ndeb-src http://security.debian.org jessie/updates main" > /etc/apt/sources.list
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg  add - && apt-get update -y && apt-get install google-cloud-sdk -y
 
-RUN apt-get update && apt-get install -y python3-pip python3-dev \
-    build-essential libssl-dev libffi-dev
-    
 COPY requirements.txt ./
 
-RUN pip3 install -U setuptools --upgrade
-RUN pip3 install -r requirements.txt
+RUN pip install -r requirements.txt
 
 COPY . .
 COPY ./run.sh /usr/local/bin

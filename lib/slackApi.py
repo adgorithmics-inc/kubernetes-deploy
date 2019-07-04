@@ -40,7 +40,7 @@ class SlackApi:
                 channel=SLACK_CHANNEL,
                 username=self.username,
                 icon_emoji=self.icon,
-                **kwargs
+                **kwargs,
             )
             log.debug("Returned from Slack: {}".format(returned))
             self.thread_ts = returned.get("ts")
