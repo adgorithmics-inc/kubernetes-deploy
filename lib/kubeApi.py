@@ -56,7 +56,7 @@ class KubeApi:
             self.verify_deployment_update(deployment)
         log.debug(
             "Finished updating deployment: deployment={} update={}".format(
-                deployment.update
+                deployment, update
             )
         )
 
