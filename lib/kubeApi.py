@@ -139,7 +139,7 @@ class KubeApi:
     def verify_job_not_in_progress(self, job: str):
         log.debug("Verifying jobs not in progress: job={}".format(job))
         result = self.coreV1Api.list_namespaced_pod(
-            self.namepsace,
+            self.namespace,
             label_selector="app={}".format(job),
             field_selector="status.phase!=Succeeded,status.phase!=Failed",
         )

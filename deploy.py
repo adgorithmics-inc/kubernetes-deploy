@@ -12,7 +12,7 @@ logging.basicConfig(
 )
 
 # listed in scale down order
-SCALABLE_TIERS = ["frontend", "worker", "scheduler"]
+SCALABLE_TIERS = ["frontend", "scheduler", "worker"]
 NON_SCALABLE_TIERS = ["apiserver"]
 
 
@@ -185,7 +185,9 @@ class Deployorama:
         step = "Migrating Database"
         try:
             self.slacker.send_thread_reply(step)
-            self.kuber.run_migration(self.image)
+            self.kuber.run_migration(
+                image=self.image, source=config.APP_MIGRATOR_SOURCE
+            )
             self.migration_completed = True
         except Exception as e:
             self.raise_step_error(step=step, error=e)

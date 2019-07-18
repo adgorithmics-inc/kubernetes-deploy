@@ -9,3 +9,4 @@ DATABASE_BACKUP_BUCKET = os.getenv("DATABASE_BACKUP_BUCKET")
 HOST_NAME = os.getenv("HOSTNAME")
 NAMESPACE = "default"
 DEPLOYMENT_GROUP = "monolith"
+APP_MIGRATOR_SOURCE = "monolith-frontend"
