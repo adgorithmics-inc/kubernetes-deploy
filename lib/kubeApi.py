@@ -57,16 +57,21 @@ class KubeApi:
             name, self.namespace, deployment
         )
         if verify_update:
-            self.verify_deployment_update(deployment)
+            self.verify_deployment_update(name)
         log.debug(
             "Finished updating deployment: deployment={} update={}".format(
                 name, deployment
             )
         )
 
-    def set_deployment_replicas(self, deployment: client.V1Deployment, replicas: int):
+    def set_deployment_replicas(
+        self,
+        deployment: client.V1Deployment,
+        replicas: int,
+        verify_update: bool = False,
+    ):
         deployment.spec.replicas = replicas
-        self.update_deployment(deployment)
+        self.update_deployment(deployment, verify_update)
 
     def set_deployment_image(
         self, deployment: client.V1Deployment, image: int, verify_update: bool = False

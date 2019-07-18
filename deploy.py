@@ -114,36 +114,44 @@ class Deployorama:
         """
         Scale down deployments.
         """
-        for tier in SCALABLE_TIERS:
-            for deployment in self.deployments[tier]:
-                step = "Scaling Down Deployment:\ndeployment={}".format(
-                    deployment["name"]
-                )
-                try:
+        try:
+            for tier in SCALABLE_TIERS:
+                for deployment in self.deployments[tier]:
+                    step = "Scaling Down Deployment:\ndeployment={}".format(
+                        deployment["name"]
+                    )
                     self.slacker.send_thread_reply(step)
                     deployment["scaled_down"] = True
                     self.kuber.set_deployment_replicas(deployment["instance"], 0)
-                except Exception as e:
-                    self.raise_step_error(step=step, error=e)
+                step = "Verifying {} Deployments Scaled Down Successfully".format(tier)
+                self.slacker.send_thread_reply(step)
+                for deployment in self.deployments[tier]:
+                    self.kuber.verify_deployment_update(deployment["name"])
+        except Exception as e:
+            self.raise_step_error(step=step, error=e)
 
     def scale_up_deployments(self):
         """
         Scale up all deployments (in reverse order) to original replica counts.
         """
-        for tier in SCALABLE_TIERS[::-1]:
-            for deployment in self.deployments[tier]:
-                if deployment.get("scaled_down", False) is True:
-                    step = "Scaling Up Deployment:\ndeployment={}\nreplicas={}".format(
-                        deployment["name"], deployment["replicas"]
-                    )
-                    try:
+        try:
+            for tier in SCALABLE_TIERS[::-1]:
+                for deployment in self.deployments[tier]:
+                    if deployment.get("scaled_down", False) is True:
+                        step = "Scaling Up Deployment:\ndeployment={}\nreplicas={}".format(
+                            deployment["name"], deployment["replicas"]
+                        )
                         self.slacker.send_thread_reply(step)
                         self.kuber.set_deployment_replicas(
                             deployment["instance"], deployment["replicas"]
                         )
                         deployment["scaled_down"] = False
-                    except Exception as e:
-                        self.raise_step_error(step=step, error=e)
+                step = "Verifying {} Deployments Scaled Up Successfully".format(tier)
+                self.slacker.send_thread_reply(step)
+                for deployment in self.deployments[tier]:
+                    self.kuber.verify_deployment_update(deployment["name"])
+        except Exception as e:
+            self.raise_step_error(step=step, error=e)
 
     def backup_database(self):
         """
