@@ -122,7 +122,7 @@ class Deployorama:
                     )
                     self.slacker.send_thread_reply(step)
                     deployment["scaled_down"] = True
-                    self.kuber.set_deployment_replicas(deployment["instance"], 0)
+                    self.kuber.set_deployment_replicas(deployment["name"], 0)
                 step = "Verifying {} Deployments Scaled Down Successfully".format(tier)
                 self.slacker.send_thread_reply(step)
                 for deployment in self.deployments[tier]:
@@ -143,7 +143,7 @@ class Deployorama:
                         )
                         self.slacker.send_thread_reply(step)
                         self.kuber.set_deployment_replicas(
-                            deployment["instance"], deployment["replicas"]
+                            deployment["name"], deployment["replicas"]
                         )
                         deployment["scaled_down"] = False
                 step = "Verifying {} Deployments Scaled Up Successfully".format(tier)
@@ -209,7 +209,7 @@ class Deployorama:
                     )
                     continue
                 self.slacker.send_thread_reply(step)
-                self.kuber.set_deployment_image(deployment["instance"], self.image)
+                self.kuber.set_deployment_image(deployment["name"], self.image)
                 deployment["updated_image"] = True
             step = "Verifying Deployment Updates Completed Successfully"
             self.slacker.send_thread_reply(step)
@@ -231,7 +231,7 @@ class Deployorama:
             try:
                 self.slacker.send_thread_reply(step)
                 self.kuber.set_deployment_image(
-                    deployment["instance"], deployment["image"], verify_update=True
+                    deployment["name"], deployment["image"], verify_update=True
                 )
                 deployment["updated_image"] = False
             except Exception as e:

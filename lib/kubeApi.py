@@ -36,7 +36,6 @@ class KubeApi:
                     "name": deployment.metadata.name,
                     "image": deployment.spec.template.spec.containers[0].image,
                     "replicas": deployment.status.replicas,
-                    "instance": deployment,
                 }
             )
         log.debug(
@@ -57,7 +56,7 @@ class KubeApi:
             name, self.namespace, deployment
         )
         if verify_update:
-            self.verify_deployment_update(name)
+            self.verify_deployment_update(deployment)
         log.debug(
             "Finished updating deployment: deployment={} update={}".format(
                 name, deployment
@@ -65,17 +64,14 @@ class KubeApi:
         )
 
     def set_deployment_replicas(
-        self,
-        deployment: client.V1Deployment,
-        replicas: int,
-        verify_update: bool = False,
+        self, name: str, replicas: int, verify_update: bool = False
     ):
+        deployment = self.appsV1Api.read_namespaced_deployment(name, self.namespace)
         deployment.spec.replicas = replicas
         self.update_deployment(deployment, verify_update)
 
-    def set_deployment_image(
-        self, deployment: client.V1Deployment, image: int, verify_update: bool = False
-    ):
+    def set_deployment_image(self, name: str, image: int, verify_update: bool = False):
+        deployment = self.appsV1Api.read_namespaced_deployment(name, self.namespace)
         deployment.spec.template.spec.containers[0].image = image
         self.update_deployment(deployment, verify_update)
 
@@ -156,9 +152,10 @@ class KubeApi:
                 job, self.namespace, body=client.V1DeleteOptions()
             )
         except client.rest.ApiException as e:
-            if e.code != NOT_FOUND:
+            if e.status != NOT_FOUND:
                 raise Exception("Error deleting job: error={}".format(str(e)))
             log.debug("Unable to delete job that doesn't exist: job={}".format(job))
+            return
         log.debug("Job deleted successfully: job={}".format(job))
 
     def generate_app_migrator_job(self, image: str, source: str):
@@ -216,6 +213,7 @@ class KubeApi:
         log.debug("Begin running migration: image={} source={}".format(image, source))
         self.verify_job_not_in_progress(APP_MIGRATOR)
         self.delete_job(APP_MIGRATOR)
+        self.verify_pod_terminations_complete(APP_MIGRATOR)
         self.generate_app_migrator_job(image, source)
         self.verify_job_complete(APP_MIGRATOR)
         log.debug("Completed migration: image={} source={}".format(image, source))
