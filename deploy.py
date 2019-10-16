@@ -2,6 +2,7 @@ import config
 import argparse
 import logging
 import subprocess
+import sys
 
 from datetime import datetime
 from lib.slackApi import SlackApi
@@ -259,3 +260,4 @@ if __name__ == "__main__":
     config.MIGRATION_LEVEL = args.migration
     deployer = Deployorama()
     deployer.deploy()
+    sys.exit()
