@@ -158,8 +158,10 @@ class Deployorama:
         """
         Store a cloud sql backup on google storage
         """
-        backup_file = "{}-{}.sql".format(
-            config.DATABASE_NAME, datetime.today().strftime("%Y-%m-%d--%H%M")
+        backup_file = "{}/{}-{}.sql".format(
+            config.DATABASE_NAME,
+            config.DATABASE_NAME,
+            datetime.today().strftime("%Y-%m-%d--%H%M"),
         )
         backup_uri = "{}/{}".format(config.DATABASE_BACKUP_BUCKET, backup_file)
         step = "Backing Up Database:\nbackup={}".format(backup_uri)
@@ -260,4 +262,4 @@ if __name__ == "__main__":
     config.MIGRATION_LEVEL = args.migration
     deployer = Deployorama()
     deployer.deploy()
-    sys.exit()
+    sys._exit()
