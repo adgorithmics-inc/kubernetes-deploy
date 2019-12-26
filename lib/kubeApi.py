@@ -9,6 +9,7 @@ TIMEOUT_SECONDS = 300
 POLL_WAIT = 15
 NOT_FOUND = 404
 APP_MIGRATOR = "app-migrator"
+APP_MIGRATOR_SCRIPT = 'run-migrate.sh'
 
 
 class KubeApi:
@@ -178,11 +179,12 @@ class KubeApi:
         )
         job.spec.template.spec.containers[0].image = image
         job.spec.template.spec.restart_policy = "Never"
-        job.spec.template.spec.containers[0].command = [
-            "/opt/adgo-app/manage.py",
-            "migrate",
-            "--no-input",
-        ]
+        envs = job.spec.template.spec.containers[0].env
+        new_command = ([env for env in envs if env.name == 'COMMAND'] or [None])[0]
+        if new_command is None:
+            envs.append(client.V1EnvVar(name='COMMAND', value=APP_MIGRATOR_SCRIPT))
+        else:
+            new_command.value = APP_MIGRATOR_SCRIPT
         self.batchV1Api.create_namespaced_job(self.namespace, job)
         log.debug(
             "Generation of app-migrator job complete: image={} source={}".format(
