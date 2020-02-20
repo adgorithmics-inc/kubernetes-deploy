@@ -7,14 +7,11 @@ import os
 from datetime import datetime
 from lib.slackApi import SlackApi
 from lib.kubeApi import KubeApi
+from lib.helpers import generate_image
 
 logging.basicConfig(
     level=logging.DEBUG, format="[%(asctime)s][%(levelname)s] %(message)s"
 )
-
-# listed in scale down order
-SCALABLE_TIERS = ["frontend", "scheduler", "worker"]
-NON_SCALABLE_TIERS = ["apiserver"]
 
 
 class Deployorama:
@@ -23,21 +20,22 @@ class Deployorama:
     """
 
     def __init__(self):
-        self.image = config.IMAGE
+        self.tag = config.TAG
         self.migration = config.MIGRATION_LEVEL
         self.slacker = SlackApi()
         self.kuber = KubeApi(namespace=config.NAMESPACE)
         self.deployments = {
             tier: self.kuber.get_deployments(
-                label_selector="deploymentGroup={}, tier={}".format(
-                    config.DEPLOYMENT_GROUP, tier
-                )
+                label_selector="project={}, tier={}".format(config.PROJECT, tier)
             )
-            for tier in SCALABLE_TIERS + NON_SCALABLE_TIERS
+            for tier in config.TIERS
         }
         self.has_down_time = self.migration == 2
         self.has_migration = self.migration > 0
         self.migration_completed = False
+
+    def get_new_image(self, image):
+        return generate_image(old_image=image, new_tag=self.tag)
 
     def all_deployments(self):
         return [deploy for sublist in self.deployments.values() for deploy in sublist]
@@ -116,7 +114,7 @@ class Deployorama:
         Scale down deployments.
         """
         try:
-            for tier in SCALABLE_TIERS:
+            for tier in config.TIERS:
                 for deployment in self.deployments[tier]:
                     step = "Scaling Down Deployment:\ndeployment={}".format(
                         deployment["name"]
@@ -136,7 +134,7 @@ class Deployorama:
         Scale up all deployments (in reverse order) to original replica counts.
         """
         try:
-            for tier in SCALABLE_TIERS[::-1]:
+            for tier in config.TIERS[::-1]:
                 for deployment in self.deployments[tier]:
                     if deployment.get("scaled_down", False) is True:
                         step = "Scaling Up Deployment:\ndeployment={}\nreplicas={}".format(
@@ -186,9 +184,7 @@ class Deployorama:
         step = "Migrating Database"
         try:
             self.slacker.send_thread_reply(step)
-            self.kuber.run_migration(
-                image=self.image, source=config.APP_MIGRATOR_SOURCE
-            )
+            self.kuber.run_migration(tag=self.tag, source=config.APP_MIGRATOR_SOURCE)
             self.migration_completed = True
         except Exception as e:
             self.raise_step_error(step=step, error=e)
@@ -199,18 +195,19 @@ class Deployorama:
         """
         try:
             for deployment in self.all_deployments():
+                new_image = self.get_new_image(deployment["image"])
                 step = "Setting Deployment Image:\ndeployment={}\nold_image={}\nnew_image={}".format(
-                    deployment["name"], deployment["image"], self.image
+                    deployment["name"], deployment["image"], new_image
                 )
-                if deployment["image"] == self.image:
+                if deployment["image"] == new_image:
                     self.slacker.send_thread_reply(
                         "Deployment Doesn't Require Image Update: deployment={} image={}".format(
-                            deployment["name"], self.image
+                            deployment["name"], new_image
                         )
                     )
                     continue
                 self.slacker.send_thread_reply(step)
-                self.kuber.set_deployment_image(deployment["name"], self.image)
+                self.kuber.set_deployment_image(deployment["name"], new_image)
                 deployment["updated_image"] = True
             step = "Verifying Deployment Updates Completed Successfully"
             self.slacker.send_thread_reply(step)
@@ -227,7 +224,9 @@ class Deployorama:
             if deployment.get("updated_image", False) is False:
                 continue
             step = "Rolling Back Deployment Image:\ndeployment={}\nattempted_image={}\nrollback_image={}".format(
-                deployment["name"], self.image, deployment["image"]
+                deployment["name"],
+                self.get_new_image(deployment["image"]),
+                deployment["image"],
             )
             try:
                 self.slacker.send_thread_reply(step)
@@ -242,11 +241,7 @@ class Deployorama:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("deploy")
     parser.add_argument(
-        "-i",
-        "--image",
-        help="New monolith image to be rolled out.",
-        type=str,
-        required=True,
+        "-t", "--tag", help="New image tag to be rolled out.", type=str, required=True
     )
     parser.add_argument(
         "-m",
@@ -256,7 +251,7 @@ if __name__ == "__main__":
         required=True,
     )
     args = parser.parse_args()
-    config.IMAGE = args.image.strip()
+    config.TAG = args.tag.strip()
     config.MIGRATION_LEVEL = args.migration
     deployer = Deployorama()
     deployer.deploy()

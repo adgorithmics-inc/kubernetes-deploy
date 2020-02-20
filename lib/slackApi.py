@@ -4,8 +4,11 @@ from slackclient import SlackClient
 
 log = logging.getLogger(__name__)
 
-SLACK_CHANNEL = "adgo_deployments"
-BASE_LOG_URL = "https://console.cloud.google.com/logs/viewer?project=sonic-wavelet-124006&resource=container&filters=label:container.googleapis.com%2Fpod_name:"
+BASE_LOG_URL = (
+    "https://console.cloud.google.com/logs/viewer"
+    + "?project=sonic-wavelet-124006&resource=container"
+    + "&filters=label:container.googleapis.com%2Fpod_name:"
+)
 
 MIGRATION_TEXT_MAP = ["None", ":hotsprings: Hot", ":snowflake: Cold"]
 
@@ -19,9 +22,9 @@ class SlackApi:
         is_production = config.APP_ENV == "production"
         self.slacker = SlackClient(token=config.SLACK_TOKEN)
         self.cluster_text = "Production" if is_production else "Development"
-        self.image = config.IMAGE
+        self.tag = config.TAG
         self.icon = ":release:" if is_production else ":canned_food:"
-        self.username = "{} Deployer".format(self.cluster_text)
+        self.username = f"{config.PROJECT.title()} {self.cluster_text} Deployer"
         self.migration_text = MIGRATION_TEXT_MAP[config.MIGRATION_LEVEL]
         self.thread_ts = 0
 
@@ -32,12 +35,12 @@ class SlackApi:
         try:
             log.debug(
                 "Sending to Slack #{}: text={}".format(
-                    SLACK_CHANNEL, kwargs.get("text")
+                    config.SLACK_CHANNEL, kwargs.get("text")
                 )
             )
             returned = self.slacker.api_call(
                 "chat.postMessage",
-                channel=SLACK_CHANNEL,
+                channel=config.SLACK_CHANNEL,
                 username=self.username,
                 icon_emoji=self.icon,
                 **kwargs,
@@ -57,13 +60,13 @@ class SlackApi:
         text = "{} Deployment Processing".format(self.cluster_text)
         attachments = [
             {
-                "fallback": "Image={} Migrations={}".format(
-                    self.image, self.migration_text
+                "fallback": "Image Tag={} Migrations={}".format(
+                    self.tag, self.migration_text
                 ),
                 "color": "good",
                 "attachment_type": "default",
                 "fields": [
-                    {"title": "Image", "value": self.image, "short": False},
+                    {"title": "Image Tag", "value": self.tag, "short": True},
                     {
                         "title": "Migrations",
                         "value": f"{self.migration_text}",

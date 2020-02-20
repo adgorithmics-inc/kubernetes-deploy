@@ -1,15 +1,20 @@
+import config
 import logging
 import time
-from kubernetes import client, config
+from kubernetes import client, config as kube_config
 from typing import List
+from lib.helpers import generate_image
 
 log = logging.getLogger(__name__)
-config.load_incluster_config()
 TIMEOUT_SECONDS = 300
 POLL_WAIT = 15
 NOT_FOUND = 404
-APP_MIGRATOR = "app-migrator"
-APP_MIGRATOR_SCRIPT = 'run-migrate.sh'
+APP_MIGRATOR = f"{config.PROJECT}-migrator"
+
+if config.DEBUG:
+    kube_config.load_kube_config()
+else:
+    kube_config.load_incluster_config()
 
 
 class KubeApi:
@@ -57,7 +62,7 @@ class KubeApi:
             name, self.namespace, deployment
         )
         if verify_update:
-            self.verify_deployment_update(deployment)
+            self.verify_deployment_update(name)
         log.debug(
             "Finished updating deployment: deployment={} update={}".format(
                 name, deployment
@@ -100,7 +105,7 @@ class KubeApi:
                 all_pods_updated and all_pods_available and no_pods_unavailable
             )
             if still_updating:
-                time.sleep(1)
+                time.sleep(POLL_WAIT)
 
         if still_updating:
             raise Exception(
@@ -108,18 +113,14 @@ class KubeApi:
             )
         log.debug("Pod updates completed: deployment={}".format(deployment))
 
-    def verify_pod_terminations_complete(self, deployment: str):
-        log.debug(
-            "Verifying pod terminations complete: deployment={}".format(deployment)
-        )
+    def verify_pod_terminations_complete(self, app: str):
+        log.debug("Verifying pod terminations complete: app={}".format(app))
         timeout_time = time.time() + TIMEOUT_SECONDS
         still_updating = True
         while time.time() < timeout_time and still_updating:
-            log.debug(
-                "Checking deployment pod status: deployment={}".format(deployment)
-            )
+            log.debug("Checking pod status: app={}".format(app))
             result = self.coreV1Api.list_namespaced_pod(
-                self.namespace, label_selector="app={}".format(deployment)
+                self.namespace, label_selector="app={}".format(app)
             )
             still_updating = not all(
                 pod.metadata.deletion_timestamp is None for pod in result.items
@@ -128,10 +129,8 @@ class KubeApi:
                 time.sleep(POLL_WAIT)
 
         if still_updating:
-            raise Exception(
-                "Pod Termination Timeout Exceeded: deployment={}".format(deployment)
-            )
-        log.debug("Pod terminations complete: deployment={}".format(deployment))
+            raise Exception("Pod Termination Timeout Exceeded: app={}".format(app))
+        log.debug("Pod terminations complete: app={}".format(app))
 
     def verify_job_not_in_progress(self, job: str):
         log.debug("Verifying jobs not in progress: job={}".format(job))
@@ -159,13 +158,14 @@ class KubeApi:
             return
         log.debug("Job deleted successfully: job={}".format(job))
 
-    def generate_app_migrator_job(self, image: str, source: str):
-        log.debug(
-            "Generating app-migrator job: image={} source={}".format(image, source)
-        )
+    def generate_app_migrator_job(self, tag: str, source: str):
+        log.debug("Generating app-migrator job: tag={} source={}".format(tag, source))
         deployment = self.appsV1Api.read_namespaced_deployment(source, self.namespace)
         metadata = client.V1ObjectMeta(
             labels={"app": APP_MIGRATOR}, name=APP_MIGRATOR, namespace=self.namespace
+        )
+        new_image = generate_image(
+            old_image=deployment.spec.template.spec.containers[0].image, new_tag=tag
         )
         job = client.V1Job(
             api_version="batch/v1",
@@ -177,18 +177,16 @@ class KubeApi:
                 )
             ),
         )
-        job.spec.template.spec.containers[0].image = image
+        job.spec.template.spec.containers[0].image = new_image
         job.spec.template.spec.restart_policy = "Never"
-        envs = job.spec.template.spec.containers[0].env
-        new_command = ([env for env in envs if env.name == 'COMMAND'] or [None])[0]
-        if new_command is None:
-            envs.append(client.V1EnvVar(name='COMMAND', value=APP_MIGRATOR_SCRIPT))
-        else:
-            new_command.value = APP_MIGRATOR_SCRIPT
+        job.spec.template.spec.containers[0].command = config.APP_MIGRATOR_COMMAND
+        job.spec.template.spec.containers[0].args = config.APP_MIGRATOR_ARGS
+        job.spec.template.spec.containers[0].resources = client.V1ResourceRequirements()
+
         self.batchV1Api.create_namespaced_job(self.namespace, job)
         log.debug(
-            "Generation of app-migrator job complete: image={} source={}".format(
-                image, source
+            "Generation of app-migrator job complete: tag={} source={}".format(
+                tag, source
             )
         )
 
@@ -197,25 +195,33 @@ class KubeApi:
         timeout_time = time.time() + TIMEOUT_SECONDS
         active = True
         succeeded = 0
+        failed = 0
+
         while time.time() < timeout_time and active:
             log.debug("Checking job status: job={}".format(job))
             result = self.batchV1Api.read_namespaced_job(job, self.namespace)
-            active = result.status.active == 1
-            succeeded = result.status.succeeded
+            failed = (
+                0 if result.status.failed is None or result.status.failed == 0 else 1
+            )
+            succeeded = (
+                0
+                if result.status.succeeded is None or result.status.succeeded == 0
+                else 1
+            )
+            active = failed == 0 and succeeded == 0
             if active:
                 time.sleep(POLL_WAIT)
-
         if active:
             raise Exception("Job Termination Timeout Exceeded: job={}".format(job))
-        if succeeded == 0:
+        if failed > 0 or succeeded == 0:
             raise Exception("Job Failed: job={}".format(job))
         log.debug("Job completed successfully: job={}".format(job))
 
-    def run_migration(self, image: str, source: str):
-        log.debug("Begin running migration: image={} source={}".format(image, source))
+    def run_migration(self, tag: str, source: str):
+        log.debug("Begin running migration: tag={} source={}".format(tag, source))
         self.verify_job_not_in_progress(APP_MIGRATOR)
         self.delete_job(APP_MIGRATOR)
         self.verify_pod_terminations_complete(APP_MIGRATOR)
-        self.generate_app_migrator_job(image, source)
+        self.generate_app_migrator_job(tag, source)
         self.verify_job_complete(APP_MIGRATOR)
-        log.debug("Completed migration: image={} source={}".format(image, source))
+        log.debug("Completed migration: tag={} source={}".format(tag, source))
