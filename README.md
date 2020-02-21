@@ -14,7 +14,7 @@ A script to deploy monolith to kubernetes. Designed to run as a kubernetes job.
 -   DEBUG [`False`] - Will authorize kubeApi with local gcloud when `True`
 -   DISABLED [`False`] - Exits process without deploying when `True`
 -   APP_ENV [`development`] - App environment (production, development) to construct slack notification
--   PROJECT ['cinnamon'] - Matches the `project` label on the deployments (cinnamon, monolith, services)
+-   PROJECT [`cinnamon`] - Matches the `project` label on the deployments (cinnamon, monolith, services)
 -   HOSTNAME [`localhost`] - Host running this process (provided by Kubernetes)
 -   NAMESPACE [`default`] - Pod namespace
 -   SLACK_CHANNEL [`dev-null`] - Target channel for slack notifications
@@ -22,7 +22,7 @@ A script to deploy monolith to kubernetes. Designed to run as a kubernetes job.
 -   DATABASE_NAME [`cinnamon`] - Cloud SQL database name
 -   DATABASE_BACKUP_BUCKET [`gs://developers-adgo-io/backups/postgresql`] - GS database backup location (will append `/PROJECT`)
 -   APP_MIGRATOR_SOURCE [`gql-server-private`] - The name of the deployment to use as the base configuration for migration jobs
--   TIERS ['"frontend,scheduler,worker,gateway,apiserver"] - Comma separated list of deployments (in scale down order)
+-   TIERS [`frontend,scheduler,worker,gateway,apiserver`] - Comma separated list of deployments (in scale down order)
 
 ## Required Arguments
 
