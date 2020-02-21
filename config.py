@@ -16,6 +16,20 @@ NAMESPACE = os.getenv("NAMESPACE", "default")
 SLACK_TOKEN = os.getenv("SLACK_TOKEN")
 SLACK_CHANNEL = os.getenv("SLACK_CHANNEL", "dev-null")
 
+# -------- Trello --------
+TRELLO_KEY = os.getenv("TRELLO_KEY")
+TRELLO_TOKEN = os.getenv("TRELLO_TOKEN")
+TRELLO_LIST_ID = os.getenv("TRELLO_LIST_ID")
+TRELLO_SEND_NOTIFICATION = os.getenv("TRELLO_SEND_NOTIFICATION", False) in [
+    "true",
+    "True",
+]
+
+# -------- Mailgun --------
+MAILGUN_DOMAIN = os.getenv("MAILGUN_DOMAIN")
+MAILGUN_KEY = os.getenv("MAILGUN_KEY")
+MAILGUN_TO = os.getenv("MAILGUN_TO")
+
 # -------- Database backup --------
 DATABASE_INSTANCE_NAME = os.getenv("DATABASE_INSTANCE_NAME", "dev-sql")
 DATABASE_NAME = os.getenv("DATABASE_NAME", "cinnamon")

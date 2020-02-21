@@ -8,6 +8,7 @@ from datetime import datetime
 from lib.slackApi import SlackApi
 from lib.kubeApi import KubeApi
 from lib.helpers import generate_image
+from lib.trello import cleanup_trello
 
 logging.basicConfig(
     level=logging.DEBUG, format="[%(asctime)s][%(levelname)s] %(message)s"
@@ -255,4 +256,5 @@ if __name__ == "__main__":
     config.MIGRATION_LEVEL = args.migration
     deployer = Deployorama()
     deployer.deploy()
+    cleanup_trello()
     os._exit(os.EX_OK)
