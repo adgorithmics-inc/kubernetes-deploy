@@ -8,6 +8,15 @@ A script to deploy monolith to kubernetes. Designed to run as a kubernetes job.
 
 -   SLACK_TOKEN - For slack notifications
 
+### Required if TRELLO_SEND_NOTIFICATION flag is True
+
+-   TRELLO_KEY - Trello api key
+-   TRELLO_TOKEN - Trello api token
+-   TRELLO_LIST_ID - Target trello list for release notification generation
+-   MAILGUN_DOMAIN - Mailgun domain
+-   MAILGUN_KEY - Mailgun api key
+-   MAILGUN_TO - Recipients for release notification email
+
 ### Optional (with defaults for development cinnamon deployment)
 
 -   GOOGLE_APPLICATION_CREDENTIALS - Path to gcloud authentication json key file. Not needed if you have local gcloud auth initialized
@@ -23,6 +32,7 @@ A script to deploy monolith to kubernetes. Designed to run as a kubernetes job.
 -   DATABASE_BACKUP_BUCKET [`gs://developers-adgo-io/backups/postgresql`] - GS database backup location (will append `/PROJECT`)
 -   APP_MIGRATOR_SOURCE [`gql-server-private`] - The name of the deployment to use as the base configuration for migration jobs
 -   TIERS [`frontend,scheduler,worker,gateway,apiserver`] - Comma separated list of deployments (in scale down order)
+-   TRELLO_SEND_NOTIFICATION [`False`] - Cleanup trello list and send release notification via email
 
 ## Required Arguments
 

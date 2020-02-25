@@ -13,7 +13,9 @@ entrypoints==0.3
 flake8==3.7.9
 google-auth==1.6.2
 idna==2.8
+Jinja2==2.11.1
 kubernetes==8.0.1
+MarkupSafe==1.1.1
 mccabe==0.6.1
 oauthlib==3.0.0
 pyasn1==0.4.5
