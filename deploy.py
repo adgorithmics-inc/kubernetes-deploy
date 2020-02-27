@@ -34,12 +34,19 @@ class Deployorama:
         self.has_down_time = self.migration == 2
         self.has_migration = self.migration > 0
         self.migration_completed = False
+        self.deploy_success = True
 
     def get_new_image(self, image):
         return generate_image(old_image=image, new_tag=self.tag)
 
     def all_deployments(self):
         return [deploy for sublist in self.deployments.values() for deploy in sublist]
+
+    def send_release_notification(self):
+        if not self.deploy_success:
+            logging.debug("Skipping release notification due to deployment failure")
+            return
+        cleanup_trello()
 
     def deploy(self):
         """
@@ -69,6 +76,7 @@ class Deployorama:
                 self.scale_up_deployments()
 
         except Exception as e:
+            self.deploy_success = False
             error_message = str(e)
             logging.error(error_message)
             error_handling_message = self.handle_deploy_failure()
@@ -79,6 +87,7 @@ class Deployorama:
             deployments=self.all_deployments(),
             requires_migration_rollback=self.has_down_time and self.migration_completed,
         )
+        self.send_release_notification()
 
     def handle_deploy_failure(self):
         """
@@ -256,5 +265,4 @@ if __name__ == "__main__":
     config.MIGRATION_LEVEL = args.migration
     deployer = Deployorama()
     deployer.deploy()
-    cleanup_trello()
     os._exit(os.EX_OK)
