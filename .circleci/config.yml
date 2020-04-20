@@ -12,9 +12,9 @@ jobs:
     steps:
       - checkout
       - run: |
-          CONTAINER_NAME=gcr.io/sonic-wavelet-124006/kubernetes-deploy-monolith:$(utils/get_build_tag.sh)
+          CONTAINER_NAME=gcr.io/sonic-wavelet-124006/kubernetes-deploy:$(utils/get_build_tag.sh)
           curl -X POST --data-urlencode \
-          "payload={\"channel\": \"#container-builds\", \"username\": \"Bob the Builder\", \"text\": \":partyk8: Built and published kubernetes-deploy-monolith :partyk8:: $CONTAINER_NAME\", \"icon_emoji\": \":construction_worker:\"}" \
+          "payload={\"channel\": \"#container-builds\", \"username\": \"Bob the Builder\", \"text\": \"Built and published kubernetes-deploy: $CONTAINER_NAME\", \"icon_emoji\": \":construction_worker:\"}" \
           $SLACK_HOOK_URL;
 
 workflows:

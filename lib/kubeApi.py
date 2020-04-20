@@ -149,7 +149,7 @@ class KubeApi:
         log.debug("Deleting job: job={}".format(job))
         try:
             self.batchV1Api.delete_namespaced_job(
-                job, self.namespace, body=client.V1DeleteOptions()
+                job, self.namespace, body=client.V1DeleteOptions(propagation_policy='Background')
             )
         except client.rest.ApiException as e:
             if e.status != NOT_FOUND:
