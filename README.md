@@ -1,6 +1,6 @@
-# kubernetes-deploy-monolith
+# kubernetes-deploy
 
-A script to deploy monolith to kubernetes. Designed to run as a kubernetes job.
+A script to deploy Adgo projects to kubernetes. Designed to run as a kubernetes job.
 
 ## Environment Variables
 
