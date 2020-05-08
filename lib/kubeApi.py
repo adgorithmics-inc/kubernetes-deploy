@@ -55,8 +55,8 @@ class KubeApi:
     def get_cronjobs(self, label_selector: str) -> List[dict]:
         log.debug("Getting cronjobs: label_selector={}".format(label_selector))
         cronjobs = []
-        response = self.batchV1beta1Api.list_cron_job_for_all_namespaces(
-            label_selector=label_selector
+        response = self.batchV1beta1Api.list_namespaced_cron_job(
+            self.namespace, label_selector=label_selector
         )
         for cronjob in response.items:
             cronjobs.append(
@@ -90,7 +90,7 @@ class KubeApi:
             )
         )
 
-    def update_cronjob(self, cronjob: client.V1Deployment):
+    def update_cronjob(self, cronjob):
         name = cronjob.metadata.name
         log.debug(
             "Updating cronjob: cronjob={} update={}".format(name, cronjob)

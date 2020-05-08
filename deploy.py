@@ -63,8 +63,8 @@ class Deployorama:
         error_handling_message = None
 
         try:
-            self.kuber.get_cronjobs(label_selector="project={}".format(config.PROJECT))
             self.slacker.send_initial_message()
+            self.kuber.get_cronjobs(label_selector="project={}".format(config.PROJECT))
 
             if self.has_down_time:
                 self.scale_down_deployments()
