@@ -23,6 +23,7 @@ class Deployorama:
     def __init__(self):
         self.tag = config.TAG
         self.migration = config.MIGRATION_LEVEL
+        self.check_cronjobs = config.CHECK_CRONJOBS
         self.slacker = SlackApi()
         self.kuber = KubeApi(namespace=config.NAMESPACE)
         self.deployments = {
@@ -31,6 +32,7 @@ class Deployorama:
             )
             for tier in config.TIERS
         }
+        self.cronjobs = self.kuber.get_cronjobs(label_selector="project={}".format(config.PROJECT))
         self.has_down_time = self.migration == 2
         self.has_migration = self.migration > 0
         self.migration_completed = False
@@ -62,6 +64,7 @@ class Deployorama:
 
         try:
             self.slacker.send_initial_message()
+            self.kuber.get_cronjobs(label_selector="project={}".format(config.PROJECT))
 
             if self.has_down_time:
                 self.scale_down_deployments()
@@ -71,6 +74,9 @@ class Deployorama:
                 self.run_migration()
 
             self.set_images()
+
+            if (self.check_cronjobs):
+                self.set_cronjob_images()
 
             if self.has_down_time:
                 self.scale_up_deployments()
@@ -91,7 +97,7 @@ class Deployorama:
 
     def handle_deploy_failure(self):
         """
-        Handle deployment failure by reverting all modificaitnos.
+        Handle deployment failure by reverting all modifications.
         """
         step = "Recovering From Deployment Error"
         self.slacker.send_thread_reply(step)
@@ -226,6 +232,31 @@ class Deployorama:
         except Exception as e:
             self.raise_step_error(step=step, error=e)
 
+    def set_cronjob_images(self):
+        """
+        Update images for all cronjobs.
+        """
+        try:
+            for cronjob in self.cronjobs:
+                new_image = self.get_new_image(cronjob["image"])
+                step = "Setting Cronjob Image:\ncronjob={}\nold_image={}\nnew_image={}".format(
+                    cronjob["name"], cronjob["image"], new_image
+                )
+                if (cronjob["image"] == new_image):
+                    self.slacker.send_thread_reply(
+                        "Cronjob Doesn't Require Image Update: cronjob={} image={}".format(
+                            cronjob["name"], new_image
+                        )
+                    )
+                    continue
+                self.slacker.send_thread_reply(step)
+                self.kuber.set_cronjob_image(cronjob["name"], new_image)
+            step = "Cronjob Updates Completed"
+            self.slacker.send_thread_reply(step)
+
+        except Exception as e:
+            self.raise_step_error(step=step, error=e)
+
     def rollback_images(self):
         """
         Rollback all deployment images to their original state prior to deployment.
@@ -259,10 +290,22 @@ if __name__ == "__main__":
         help="Migration level: 0=None, 1=Hot, 2=Cold",
         type=int,
         required=True,
+        choices=[0, 1, 2]
+    )
+    parser.add_argument(
+        "-cj",
+        "--cronjob",
+        help=f"Set to True to update cronjobs available for PROJECT:{config.PROJECT}.",
+        type=bool,
+        default=True,
+        required=False,
+        choices=[True, False]
     )
     args = parser.parse_args()
     config.TAG = args.tag.strip()
     config.MIGRATION_LEVEL = args.migration
+    config.CHECK_CRONJOBS = args.cronjob
+
     deployer = Deployorama()
     deployer.deploy()
     os._exit(os.EX_OK)

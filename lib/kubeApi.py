@@ -28,6 +28,7 @@ class KubeApi:
         self.coreV1Api = client.CoreV1Api()
         self.batchV1Api = client.BatchV1Api()
         self.namespace = namespace
+        self.batchV1beta1Api = client.BatchV1beta1Api()
 
     def get_deployments(self, label_selector: str) -> List[dict]:
         log.debug("Getting deployments: label_selector={}".format(label_selector))
@@ -51,6 +52,26 @@ class KubeApi:
         )
         return deployments
 
+    def get_cronjobs(self, label_selector: str) -> List[dict]:
+        log.debug("Getting cronjobs: label_selector={}".format(label_selector))
+        cronjobs = []
+        response = self.batchV1beta1Api.list_namespaced_cron_job(
+            self.namespace, label_selector=label_selector
+        )
+        for cronjob in response.items:
+            cronjobs.append(
+                {
+                    "name": cronjob.metadata.name,
+                    "image": cronjob.spec.job_template.spec.template.spec.containers[0].image,
+                }
+            )
+        log.debug(
+            "Finished getting cronjobs: label_selector={} cronjobs={}".format(
+                label_selector, cronjobs
+            )
+        )
+        return cronjobs
+
     def update_deployment(
         self, deployment: client.V1Deployment, verify_update: bool = True
     ):
@@ -69,6 +90,20 @@ class KubeApi:
             )
         )
 
+    def update_cronjob(self, cronjob):
+        name = cronjob.metadata.name
+        log.debug(
+            "Updating cronjob: cronjob={} update={}".format(name, cronjob)
+        )
+        cronjob = self.batchV1beta1Api.patch_namespaced_cron_job(
+            name, self.namespace, cronjob
+        )
+        log.debug(
+            "Finished updating cronjob: cronjob={} update={}".format(
+                name, cronjob
+            )
+        )
+
     def set_deployment_replicas(
         self, name: str, replicas: int, verify_update: bool = False
     ):
@@ -76,10 +111,15 @@ class KubeApi:
         deployment.spec.replicas = replicas
         self.update_deployment(deployment, verify_update)
 
-    def set_deployment_image(self, name: str, image: int, verify_update: bool = False):
+    def set_deployment_image(self, name: str, image: str, verify_update: bool = False):
         deployment = self.appsV1Api.read_namespaced_deployment(name, self.namespace)
         deployment.spec.template.spec.containers[0].image = image
         self.update_deployment(deployment, verify_update)
+
+    def set_cronjob_image(self, name: str, image: str, verify_update: bool = False):
+        cronjob = self.batchV1beta1Api.read_namespaced_cron_job(name, self.namespace)
+        cronjob.spec.job_template.spec.template.spec.containers[0].image = image
+        self.update_cronjob(cronjob)
 
     def verify_deployment_update(self, deployment: str):
         self.verify_pod_updates_complete(deployment)
