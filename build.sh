@@ -4,7 +4,7 @@ set -e
 # Takes image build tag from script argument or generates from date and short sha
 TAG_ARG=$1
 BUILD_TAG=${TAG_ARG:-$(utils/get_build_tag.sh)}
-BASE_IMAGE=$GCLOUD_PROJECT/kubernetes-deploy
+BASE_IMAGE=gcr.io/$GCLOUD_PROJECT/kubernetes-deploy
 
 if [ "${BOOTLEG}" = 'true' ]; then
     random=$(

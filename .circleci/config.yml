@@ -12,7 +12,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          CONTAINER_NAME=$GCLOUD_PROJECT/kubernetes-deploy:$(utils/get_build_tag.sh)
+          CONTAINER_NAME=gcr.io/$GCLOUD_PROJECT/kubernetes-deploy:$(utils/get_build_tag.sh)
           curl -X POST --data-urlencode \
           "payload={\"channel\": \"#container-builds\", \"username\": \"Bob the Builder\", \"text\": \"Built and published kubernetes-deploy: $CONTAINER_NAME\", \"icon_emoji\": \":construction_worker:\"}" \
           $SLACK_HOOK_URL;
