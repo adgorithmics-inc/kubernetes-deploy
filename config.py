@@ -8,7 +8,7 @@ DISABLED = os.getenv("DISABLED", False) in ["true", "True"]
 APP_ENV = os.getenv("APP_ENV", "development")
 
 # -------- Project, Pod, Cluster --------
-PROJECT = os.getenv("PROJECT", "cinnamon")
+PROJECT = os.getenv("PROJECT")
 HOST_NAME = os.getenv("HOSTNAME", "localhost")
 NAMESPACE = os.getenv("NAMESPACE", "default")
 
@@ -31,12 +31,12 @@ MAILGUN_KEY = os.getenv("MAILGUN_KEY")
 MAILGUN_TO = os.getenv("MAILGUN_TO")
 
 # -------- Database backup --------
-DATABASE_INSTANCE_NAME = os.getenv("DATABASE_INSTANCE_NAME", "dev-sql")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "cinnamon")
-DATABASE_BACKUP_BUCKET = f"{os.getenv('DATABASE_BACKUP_BUCKET', 'gs://developers-adgo-io/backups/postgresql')}/{DATABASE_NAME}"
+DATABASE_INSTANCE_NAME = os.getenv("DATABASE_INSTANCE_NAME")
+DATABASE_NAME = os.getenv("DATABASE_NAME")
+DATABASE_BACKUP_BUCKET = f"{os.getenv('DATABASE_BACKUP_BUCKET')}/{DATABASE_NAME}"
 
 # -------- Migrate job --------
-APP_MIGRATOR_SOURCE = os.getenv("APP_MIGRATOR_SOURCE", "gql-server-private")
+APP_MIGRATOR_SOURCE = os.getenv("APP_MIGRATOR_SOURCE")
 # comma separated list
 APP_MIGRATOR_COMMAND = os.getenv("APP_MIGRATOR_COMMAND", "npm").split(",")
 # comma separated list
